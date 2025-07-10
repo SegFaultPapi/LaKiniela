@@ -1,116 +1,133 @@
 "use client"
 
 import { useState } from "react"
+import { Button } from "@/components/ui/button"
+import { ConnectButton } from "@rainbow-me/rainbowkit"
+import { useWallet } from "@/components/wallet-provider"
+import { Menu, X, Wallet } from "lucide-react"
+import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { Trophy, User, Home, Target, Menu } from "lucide-react"
-import { ConnectButton } from "@rainbow-me/rainbowkit"
-import { useWallet } from "./wallet-provider"
 
 export function Navbar() {
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const { isConnected, balance } = useWallet()
   const pathname = usePathname()
-  const { balance } = useWallet()
-  const [isOpen, setIsOpen] = useState(false)
 
   const navItems = [
-    { href: "/", label: "Inicio", icon: Home },
-    { href: "/apuestas", label: "Apuestas", icon: Target },
-    { href: "/perfil", label: "Perfil", icon: User },
+    { name: "Inicio", href: "/", active: pathname === "/" },
+    { name: "Perfil", href: "/perfil", active: pathname === "/perfil" },
   ]
 
-  const NavContent = () => (
-    <>
-      {navItems.map((item) => {
-        const Icon = item.icon
-        const isActive = pathname === item.href
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${
-              isActive ? "bg-blue-100 text-blue-700 font-medium" : "text-gray-600 hover:text-blue-600 hover:bg-blue-50"
-            }`}
-            onClick={() => setIsOpen(false)}
-          >
-            <Icon className="w-4 h-4" />
-            <span>{item.label}</span>
-          </Link>
-        )
-      })}
-    </>
-  )
-
   return (
-    <nav className="bg-white border-b border-gray-200 sticky top-0 z-50 backdrop-blur-sm bg-white/95">
+    <nav className="bg-background border-b border-primary/20 sticky top-0 z-50 backdrop-blur-sm">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link href="/" className="flex items-center space-x-2">
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-2 rounded-lg">
-              <Trophy className="h-6 w-6 text-white" />
+          <Link href="/" className="flex items-center space-x-3">
+            <div className="relative w-8 h-8">
+              <Image src="/la-kiniela-logo.png" alt="La Kiniela" fill className="object-contain" />
             </div>
-            <span className="text-xl font-bold text-gray-900">La Kiniela</span>
+            <span className="text-xl font-bold text-foreground">
+              La <span className="text-primary">Kiniela</span>
+            </span>
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-1">
-            <NavContent />
+          <div className="hidden md:flex items-center space-x-8">
+            <div className="flex space-x-1">
+              {navItems.map((item) => (
+                <Link key={item.name} href={item.href}>
+                  <Button
+                    variant={item.active ? "default" : "ghost"}
+                    className={
+                      item.active
+                        ? "bg-primary text-white hover:bg-primary/90 border border-primary"
+                        : "text-foreground hover:bg-primary/10 border border-primary/20 bg-white"
+                    }
+                  >
+                    {item.name}
+                  </Button>
+                </Link>
+              ))}
+            </div>
+
+            {/* Wallet Connection */}
+            <div className="flex items-center space-x-4">
+              {isConnected && (
+                <div className="flex items-center space-x-2 bg-white border border-primary/20 px-3 py-2 rounded-lg">
+                  <Wallet className="w-4 h-4 text-primary" />
+                  <span className="text-sm font-medium text-foreground">{balance} MXNB</span>
+                </div>
+              )}
+              <ConnectButton
+                label="Conectar"
+                accountStatus={{
+                  smallScreen: "avatar",
+                  largeScreen: "full",
+                }}
+                chainStatus={{
+                  smallScreen: "icon",
+                  largeScreen: "full",
+                }}
+                showBalance={{
+                  smallScreen: false,
+                  largeScreen: false,
+                }}
+              />
+            </div>
           </div>
 
-          {/* Wallet Section */}
-          <div className="flex items-center space-x-4">
-            {/* Balance MXNB */}
-            {balance !== "0.00" && (
-              <div className="hidden sm:block text-right">
-                <div className="text-sm font-medium text-gray-900">{balance} MXNB</div>
-                <div className="text-xs text-gray-500">Balance disponible</div>
-              </div>
-            )}
-
-            {/* RainbowKit Connect Button */}
-            <ConnectButton
-              label="Conectar Wallet"
-              accountStatus={{
-                smallScreen: "avatar",
-                largeScreen: "full",
-              }}
-              chainStatus={{
-                smallScreen: "icon",
-                largeScreen: "full",
-              }}
-              showBalance={{
-                smallScreen: false,
-                largeScreen: false,
-              }}
-            />
-
-            {/* Mobile Menu */}
-            <Sheet open={isOpen} onOpenChange={setIsOpen}>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="sm" className="md:hidden">
-                  <Menu className="h-5 w-5" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="right" className="w-64">
-                <div className="flex flex-col space-y-4 mt-8">
-                  <NavContent />
-
-                  {balance !== "0.00" && (
-                    <div className="pt-4 border-t">
-                      <div className="bg-blue-50 p-3 rounded-lg mb-3">
-                        <div className="text-sm font-medium text-gray-900">{balance} MXNB</div>
-                        <div className="text-xs text-gray-500">Balance disponible</div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </SheetContent>
-            </Sheet>
+          {/* Mobile menu button */}
+          <div className="md:hidden">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              className="text-foreground hover:bg-primary/10"
+            >
+              {isMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </Button>
           </div>
         </div>
+
+        {/* Mobile Navigation */}
+        {isMenuOpen && (
+          <div className="md:hidden py-4 border-t border-primary/20">
+            <div className="flex flex-col space-y-3">
+              {navItems.map((item) => (
+                <Link key={item.name} href={item.href} onClick={() => setIsMenuOpen(false)}>
+                  <Button
+                    variant={item.active ? "default" : "ghost"}
+                    className={
+                      item.active
+                        ? "w-full justify-start bg-primary text-white hover:bg-primary/90 border border-primary"
+                        : "w-full justify-start text-foreground hover:bg-primary/10 border border-primary/20 bg-white"
+                    }
+                  >
+                    {item.name}
+                  </Button>
+                </Link>
+              ))}
+
+              {/* Mobile Wallet Info */}
+              {isConnected && (
+                <div className="flex items-center justify-center space-x-2 bg-white border border-primary/20 px-3 py-2 rounded-lg">
+                  <Wallet className="w-4 h-4 text-primary" />
+                  <span className="text-sm font-medium text-foreground">{balance} MXNB</span>
+                </div>
+              )}
+
+              {/* Mobile Connect Button */}
+              <div className="flex justify-center pt-2">
+                <ConnectButton label="Conectar Wallet" accountStatus="full" chainStatus="full" showBalance={false} />
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </nav>
   )
 }
+
+export default Navbar

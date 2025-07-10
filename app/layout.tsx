@@ -8,9 +8,9 @@ import { Navbar } from "@/components/navbar"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "La Kiniela - Apuestas Descentralizadas",
-  description: "Plataforma de apuestas descentralizadas usando MXNB en Arbitrum",
-    generator: 'v0.dev'
+  title: "La Kiniela - Markets Descentralizados",
+  description: "Plataforma de markets descentralizados usando MXNB en Arbitrum",
+  generator: "v0.dev",
 }
 
 export default function RootLayout({
@@ -23,7 +23,7 @@ export default function RootLayout({
       <body className={inter.className}>
         <WalletProvider>
           <Navbar />
-          <main className="min-h-screen bg-gray-50">{children}</main>
+          <main className="min-h-screen bg-background">{children}</main>
         </WalletProvider>
       </body>
     </html>

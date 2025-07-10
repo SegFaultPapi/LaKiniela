@@ -2,538 +2,420 @@
 
 import type React from "react"
 
-import { Button } from "@/components/ui/button"
+import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
+  User,
   Wallet,
-  Trophy,
+  TrendingUp,
+  TrendingDown,
   Clock,
   CheckCircle,
   XCircle,
-  TrendingUp,
-  TrendingDown,
-  Copy,
   ExternalLink,
-  Loader2,
+  Copy,
   RefreshCw,
 } from "lucide-react"
 import { useWallet } from "@/components/wallet-provider"
 import { ConnectButton } from "@rainbow-me/rainbowkit"
-import { useState } from "react"
+import type { ApuestaUsuario } from "@/lib/types"
 
 export default function PerfilPage() {
-  const {
-    isConnected,
-    address,
-    balance,
-    userBets,
-    isWritePending,
-    isConfirming,
-    isConfirmed,
-    lastTxHash,
-    claimReward,
-    refetchBalance,
-    refetchUserBets,
-  } = useWallet()
+  const { isConnected, address, balance, userBets, refetchBalance, refetchUserBets } = useWallet()
+  const [copiedAddress, setCopiedAddress] = useState(false)
 
-  const [claimingBetId, setClaimingBetId] = useState<string>("")
-  const [txError, setTxError] = useState<string>("")
+  // Datos de ejemplo para el perfil (en producción vendrían del contrato)
+  const posicionesEjemplo: ApuestaUsuario[] = [
+    {
+      id: "1",
+      eventoId: "1",
+      eventoNombre: "Bitcoin $120K Septiembre 2024",
+      opcionId: "si",
+      opcionNombre: "Sí",
+      cantidad: 100,
+      cuota: 2.3,
+      estado: "pendiente",
+      fechaApuesta: "2024-01-15",
+      gananciasPotenciales: 230,
+    },
+    {
+      id: "2",
+      eventoId: "2",
+      eventoNombre: "Copa América 2024 - Argentina Campeón",
+      opcionId: "si",
+      opcionNombre: "Sí",
+      cantidad: 50,
+      cuota: 1.8,
+      estado: "ganada",
+      fechaApuesta: "2024-01-10",
+      gananciasPotenciales: 90,
+    },
+    {
+      id: "3",
+      eventoId: "3",
+      eventoNombre: "Elecciones México 2024",
+      opcionId: "no",
+      opcionNombre: "No",
+      cantidad: 75,
+      cuota: 2.8,
+      estado: "perdida",
+      fechaApuesta: "2024-01-05",
+      gananciasPotenciales: 210,
+    },
+  ]
 
-  if (!isConnected) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <Card className="max-w-md mx-auto text-center">
-          <CardContent className="py-12">
-            <Wallet className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">Wallet no conectado</h2>
-            <p className="text-gray-600 mb-6">Conecta tu wallet para ver tu perfil y historial de apuestas.</p>
-            <ConnectButton label="Conectar Wallet" />
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
+  // Usar posiciones del contrato si están disponibles, sino usar ejemplos
+  const posicionesDisponibles = userBets.length > 0 ? userBets : posicionesEjemplo
 
-  const apuestasGanadas = userBets.filter((a) => a.estado === "ganada")
-  const apuestasPerdidas = userBets.filter((a) => a.estado === "perdida")
-  const apuestasPendientes = userBets.filter((a) => a.estado === "pendiente")
+  const posicionesAbiertas = posicionesDisponibles.filter((pos) => pos.estado === "pendiente")
+  const posicionesCerradas = posicionesDisponibles.filter((pos) => pos.estado !== "pendiente")
 
-  const totalApostado = userBets.reduce((sum, apuesta) => sum + apuesta.cantidad, 0)
-  const gananciasReclamables = apuestasGanadas.reduce((sum, apuesta) => sum + apuesta.gananciasPotenciales, 0)
+  const totalInvertido = posicionesDisponibles.reduce((sum, pos) => sum + pos.cantidad, 0)
+  const totalGanado = posicionesDisponibles
+    .filter((pos) => pos.estado === "ganada")
+    .reduce((sum, pos) => sum + pos.gananciasPotenciales, 0)
+  const totalPerdido = posicionesDisponibles
+    .filter((pos) => pos.estado === "perdida")
+    .reduce((sum, pos) => sum + pos.cantidad, 0)
 
-  const copiarDireccion = () => {
+  const copiarDireccion = async () => {
     if (address) {
-      navigator.clipboard.writeText(address)
+      await navigator.clipboard.writeText(address)
+      setCopiedAddress(true)
+      setTimeout(() => setCopiedAddress(false), 2000)
     }
   }
 
-  const manejarReclamarGanancias = async (betId: string) => {
-    setClaimingBetId(betId)
-    setTxError("")
-
-    try {
-      await claimReward(betId)
-    } catch (error: any) {
-      console.error("Error al reclamar ganancias:", error)
-      setTxError(error.message || "Error al reclamar ganancias")
-    } finally {
-      setClaimingBetId("")
-    }
-  }
-
-  const refrescarDatos = () => {
-    refetchBalance()
-    refetchUserBets()
-  }
-
-  const getEstadoIcon = (estado: string) => {
-    switch (estado) {
-      case "ganada":
-        return <CheckCircle className="w-4 h-4 text-green-500" />
-      case "perdida":
-        return <XCircle className="w-4 h-4 text-red-500" />
-      case "pendiente":
-        return <Clock className="w-4 h-4 text-yellow-500" />
-      default:
-        return null
-    }
+  const formatearDireccion = (direccion: string) => {
+    return `${direccion.slice(0, 6)}...${direccion.slice(-4)}`
   }
 
   const getEstadoBadge = (estado: string) => {
     switch (estado) {
-      case "ganada":
-        return <Badge className="bg-green-100 text-green-800 border-green-200">Ganada</Badge>
-      case "perdida":
-        return <Badge variant="destructive">Perdida</Badge>
       case "pendiente":
-        return <Badge variant="secondary">Pendiente</Badge>
+        return (
+          <Badge variant="outline" className="text-yellow-600 border-yellow-600 bg-yellow-50">
+            Pendiente
+          </Badge>
+        )
+      case "ganada":
+        return (
+          <Badge variant="outline" className="text-green-600 border-green-600 bg-green-50">
+            Ganada
+          </Badge>
+        )
+      case "perdida":
+        return (
+          <Badge variant="outline" className="text-red-600 border-red-600 bg-red-50">
+            Perdida
+          </Badge>
+        )
       default:
-        return null
+        return <Badge variant="outline">Desconocido</Badge>
     }
   }
 
-  const getArbitrumExplorerUrl = (hash: string) => {
-    return `https://arbiscan.io/tx/${hash}`
+  const getOpcionBadge = (opcionId: string) => {
+    return opcionId === "si" ? (
+      <Badge variant="outline" className="text-green-700 border-green-600 bg-green-100">
+        Sí
+      </Badge>
+    ) : (
+      <Badge variant="outline" className="text-red-700 border-red-600 bg-red-100">
+        No
+      </Badge>
+    )
   }
 
-  const getAddressExplorerUrl = (address: string) => {
-    return `https://arbiscan.io/address/${address}`
+  if (!isConnected) {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="container mx-auto px-4 py-16">
+          <div className="max-w-md mx-auto text-center">
+            <Card className="border border-primary/20 bg-white shadow-lg">
+              <CardContent className="py-12">
+                <Wallet className="w-16 h-16 text-primary mx-auto mb-6" />
+                <h2 className="text-2xl font-bold text-card-foreground mb-4">Conecta tu Wallet</h2>
+                <p className="text-card-foreground/70 mb-6">
+                  Para ver tu perfil y historial de posiciones, necesitas conectar tu wallet.
+                </p>
+                <ConnectButton />
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      {/* Header del Perfil */}
-      <div className="mb-8 flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Mi Perfil</h1>
-          <p className="text-gray-600">Gestiona tu wallet y revisa tu historial de apuestas</p>
-        </div>
-        <Button variant="outline" onClick={refrescarDatos} className="flex items-center space-x-2 bg-transparent">
-          <RefreshCw className="w-4 h-4" />
-          <span>Actualizar</span>
-        </Button>
-      </div>
-
-      {/* Alertas de transacciones */}
-      {(isWritePending || isConfirming) && (
-        <Alert className="mb-6 border-blue-200 bg-blue-50">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          <AlertDescription>
-            {isWritePending && "Confirmando transacción en tu wallet..."}
-            {isConfirming && "Esperando confirmación en la blockchain..."}
-            {lastTxHash && (
-              <div className="mt-2">
-                <a
-                  href={getArbitrumExplorerUrl(lastTxHash)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-600 hover:text-blue-800 inline-flex items-center"
-                >
-                  Ver transacción <ExternalLink className="w-3 h-3 ml-1" />
-                </a>
-              </div>
-            )}
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {isConfirmed && (
-        <Alert className="mb-6 border-green-200 bg-green-50">
-          <CheckCircle className="h-4 w-4" />
-          <AlertDescription>
-            ¡Ganancias reclamadas exitosamente!
-            {lastTxHash && (
-              <div className="mt-2">
-                <a
-                  href={getArbitrumExplorerUrl(lastTxHash)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-green-600 hover:text-green-800 inline-flex items-center"
-                >
-                  Ver en Arbiscan <ExternalLink className="w-3 h-3 ml-1" />
-                </a>
-              </div>
-            )}
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {txError && (
-        <Alert className="mb-6 border-red-200 bg-red-50">
-          <AlertDescription className="text-red-800">{txError}</AlertDescription>
-        </Alert>
-      )}
-
-      {/* Información del Wallet */}
-      <Card className="mb-8">
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Wallet className="w-5 h-5" />
-            <span>Información del Wallet</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <Label className="text-sm font-medium text-gray-500">Dirección</Label>
-              <div className="flex items-center space-x-2 mt-1">
-                <code className="bg-gray-100 px-2 py-1 rounded text-sm font-mono">
-                  {address ? `${address.slice(0, 6)}...${address.slice(-4)}` : ""}
-                </code>
-                <Button variant="ghost" size="sm" onClick={copiarDireccion}>
-                  <Copy className="w-4 h-4" />
-                </Button>
-                {address && (
-                  <Button variant="ghost" size="sm" asChild>
-                    <a href={getAddressExplorerUrl(address)} target="_blank" rel="noopener noreferrer">
-                      <ExternalLink className="w-4 h-4" />
-                    </a>
-                  </Button>
-                )}
-              </div>
+    <div className="min-h-screen bg-background">
+      <div className="container mx-auto px-4 py-8">
+        {/* Header del Perfil */}
+        <div className="mb-8">
+          <div className="flex items-center space-x-4 mb-6">
+            <div className="bg-primary/10 p-4 rounded-full border border-primary/20">
+              <User className="w-8 h-8 text-primary" />
             </div>
             <div>
-              <Label className="text-sm font-medium text-gray-500">Balance MXNB</Label>
-              <div className="text-2xl font-bold text-blue-600 mt-1">{balance} MXNB</div>
+              <h1 className="text-3xl font-bold text-foreground">Mi Perfil</h1>
+              <p className="text-muted-foreground">Gestiona tu cuenta y revisa tu historial de posiciones</p>
             </div>
           </div>
-        </CardContent>
-      </Card>
 
-      {/* Estadísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-        <Card>
-          <CardContent className="p-6 text-center">
-            <div className="text-2xl font-bold text-gray-900 mb-1">{userBets.length}</div>
-            <div className="text-sm text-gray-600">Total Apuestas</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6 text-center">
-            <div className="text-2xl font-bold text-green-600 mb-1">{apuestasGanadas.length}</div>
-            <div className="text-sm text-gray-600">Ganadas</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6 text-center">
-            <div className="text-2xl font-bold text-blue-600 mb-1">{totalApostado.toFixed(2)}</div>
-            <div className="text-sm text-gray-600">MXNB Apostados</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6 text-center">
-            <div className="text-2xl font-bold text-yellow-600 mb-1">{gananciasReclamables.toFixed(2)}</div>
-            <div className="text-sm text-gray-600">Por Reclamar</div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Botón de Reclamar Ganancias */}
-      {gananciasReclamables > 0 && (
-        <Card className="mb-8 bg-green-50 border-green-200">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold text-green-800 mb-1">¡Tienes ganancias por reclamar!</h3>
-                <p className="text-green-600">
-                  Puedes reclamar {gananciasReclamables.toFixed(2)} MXNB de tus apuestas ganadas.
-                </p>
-              </div>
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button className="bg-green-600 hover:bg-green-700" disabled={isWritePending || isConfirming}>
-                    <Trophy className="w-4 h-4 mr-2" />
-                    Reclamar Ganancias
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Reclamar Ganancias</DialogTitle>
-                    <DialogDescription>
-                      Vas a reclamar {gananciasReclamables.toFixed(2)} MXNB de tus apuestas ganadas.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="py-4">
-                    <div className="bg-green-50 p-4 rounded-lg">
-                      <div className="flex justify-between items-center">
-                        <span className="font-medium">Total a reclamar:</span>
-                        <span className="text-xl font-bold text-green-600">{gananciasReclamables.toFixed(2)} MXNB</span>
-                      </div>
-                    </div>
+          {/* Información de la Wallet */}
+          <Card className="border border-primary/20 bg-white shadow-lg">
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2 text-card-foreground">
+                <Wallet className="w-5 h-5" />
+                <span>Información de Wallet</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                  <Label className="text-sm font-medium text-card-foreground/70">Dirección</Label>
+                  <div className="flex items-center space-x-2 mt-1">
+                    <code className="text-sm bg-background px-2 py-1 rounded border text-foreground">
+                      {address ? formatearDireccion(address) : "No conectado"}
+                    </code>
+                    {address && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={copiarDireccion}
+                        className="h-8 w-8 p-0 text-card-foreground hover:text-primary"
+                      >
+                        {copiedAddress ? <CheckCircle className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                      </Button>
+                    )}
                   </div>
-                  <DialogFooter>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium text-card-foreground/70">Balance MXNB</Label>
+                  <div className="flex items-center space-x-2 mt-1">
+                    <span className="text-lg font-bold text-card-foreground">{balance}</span>
                     <Button
-                      className="bg-green-600 hover:bg-green-700"
-                      onClick={() => {
-                        apuestasGanadas.forEach((apuesta) => {
-                          manejarReclamarGanancias(apuesta.id)
-                        })
-                      }}
-                      disabled={isWritePending || isConfirming}
+                      variant="ghost"
+                      size="sm"
+                      onClick={refetchBalance}
+                      className="h-8 w-8 p-0 text-card-foreground hover:text-primary"
                     >
-                      {isWritePending || isConfirming ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Procesando...
-                        </>
-                      ) : (
-                        "Confirmar Reclamo"
-                      )}
+                      <RefreshCw className="w-4 h-4" />
                     </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium text-card-foreground/70">Red</Label>
+                  <div className="mt-1">
+                    <Badge variant="outline" className="text-blue-600 border-blue-600 bg-blue-50">
+                      Arbitrum
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
-      {/* Historial de Apuestas */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Historial de Apuestas</CardTitle>
-          <CardDescription>
-            Revisa todas tus apuestas y su estado actual
-            {userBets.length === 0 && " (Los datos se cargan desde el contrato inteligente)"}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {userBets.length === 0 ? (
-            <div className="text-center py-8">
-              <Trophy className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">No tienes apuestas aún</h3>
-              <p className="text-gray-600 mb-4">Cuando realices tu primera apuesta, aparecerá aquí tu historial.</p>
-              <Button asChild>
-                <a href="/apuestas">Explorar Eventos</a>
-              </Button>
-            </div>
-          ) : (
-            <Tabs defaultValue="todas" className="w-full">
-              <TabsList className="grid w-full grid-cols-4">
-                <TabsTrigger value="todas">Todas ({userBets.length})</TabsTrigger>
-                <TabsTrigger value="pendientes">Pendientes ({apuestasPendientes.length})</TabsTrigger>
-                <TabsTrigger value="ganadas">Ganadas ({apuestasGanadas.length})</TabsTrigger>
-                <TabsTrigger value="perdidas">Perdidas ({apuestasPerdidas.length})</TabsTrigger>
+        {/* Estadísticas Generales */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <Card className="border border-primary/20 bg-white shadow-md">
+            <CardContent className="p-6 text-center">
+              <TrendingUp className="w-8 h-8 text-primary mx-auto mb-2" />
+              <div className="text-2xl font-bold text-card-foreground">{totalInvertido.toFixed(2)}</div>
+              <div className="text-sm text-card-foreground/70">Total Invertido</div>
+            </CardContent>
+          </Card>
+          <Card className="border border-primary/20 bg-white shadow-md">
+            <CardContent className="p-6 text-center">
+              <CheckCircle className="w-8 h-8 text-green-600 mx-auto mb-2" />
+              <div className="text-2xl font-bold text-card-foreground">{totalGanado.toFixed(2)}</div>
+              <div className="text-sm text-card-foreground/70">Total Ganado</div>
+            </CardContent>
+          </Card>
+          <Card className="border border-primary/20 bg-white shadow-md">
+            <CardContent className="p-6 text-center">
+              <XCircle className="w-8 h-8 text-red-600 mx-auto mb-2" />
+              <div className="text-2xl font-bold text-card-foreground">{totalPerdido.toFixed(2)}</div>
+              <div className="text-sm text-card-foreground/70">Total Perdido</div>
+            </CardContent>
+          </Card>
+          <Card className="border border-primary/20 bg-white shadow-md">
+            <CardContent className="p-6 text-center">
+              <TrendingDown className="w-8 h-8 text-primary mx-auto mb-2" />
+              <div className="text-2xl font-bold text-card-foreground">{posicionesDisponibles.length}</div>
+              <div className="text-sm text-card-foreground/70">Total Posiciones</div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Historial de Posiciones */}
+        <Card className="border border-primary/20 bg-white shadow-lg">
+          <CardHeader>
+            <CardTitle className="text-card-foreground">Historial de Posiciones</CardTitle>
+            <CardDescription className="text-card-foreground/70">
+              Revisa todas tus posiciones abiertas y cerradas
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Tabs defaultValue="abiertas" className="w-full">
+              <TabsList className="grid w-full grid-cols-2 bg-background border border-primary/20">
+                <TabsTrigger value="abiertas" className="data-[state=active]:bg-primary data-[state=active]:text-white">
+                  Posiciones Abiertas ({posicionesAbiertas.length})
+                </TabsTrigger>
+                <TabsTrigger value="cerradas" className="data-[state=active]:bg-primary data-[state=active]:text-white">
+                  Posiciones Cerradas ({posicionesCerradas.length})
+                </TabsTrigger>
               </TabsList>
 
-              <TabsContent value="todas" className="space-y-4 mt-6">
-                {userBets.map((apuesta) => (
-                  <Card key={apuesta.id} className="hover:shadow-md transition-shadow">
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <h4 className="font-semibold text-gray-900 mb-1">{apuesta.eventoNombre}</h4>
-                          <p className="text-sm text-gray-600 mb-2">
-                            Apostaste por: <span className="font-medium">{apuesta.opcionNombre}</span>
-                          </p>
-                          <div className="flex items-center space-x-4 text-sm text-gray-500">
-                            <span>Cantidad: {apuesta.cantidad} MXNB</span>
-                            <span>Cuota: {apuesta.cuota}x</span>
-                            <span>Fecha: {apuesta.fechaApuesta}</span>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="flex items-center space-x-2 mb-2">
-                            {getEstadoIcon(apuesta.estado)}
-                            {getEstadoBadge(apuesta.estado)}
-                          </div>
-                          <div className="text-sm">
-                            {apuesta.estado === "ganada" && (
-                              <div className="space-y-1">
-                                <span className="text-green-600 font-medium">+{apuesta.gananciasPotenciales} MXNB</span>
-                                <Button
-                                  size="sm"
-                                  className="bg-green-600 hover:bg-green-700 w-full"
-                                  onClick={() => manejarReclamarGanancias(apuesta.id)}
-                                  disabled={isWritePending || isConfirming || claimingBetId === apuesta.id}
-                                >
-                                  {claimingBetId === apuesta.id ? (
-                                    <>
-                                      <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                                      Reclamando...
-                                    </>
-                                  ) : (
-                                    "Reclamar"
-                                  )}
-                                </Button>
+              <TabsContent value="abiertas" className="mt-6">
+                {posicionesAbiertas.length === 0 ? (
+                  <Alert className="border-blue-200 bg-blue-50">
+                    <Clock className="h-4 w-4" />
+                    <AlertDescription>No tienes posiciones abiertas actualmente.</AlertDescription>
+                  </Alert>
+                ) : (
+                  <div className="space-y-4">
+                    {posicionesAbiertas.map((posicion) => (
+                      <Card key={posicion.id} className="border border-primary/10 bg-background">
+                        <CardContent className="p-4">
+                          <div className="flex justify-between items-start mb-3">
+                            <div className="flex-1">
+                              <h4 className="font-semibold text-foreground mb-1">{posicion.eventoNombre}</h4>
+                              <div className="flex items-center space-x-2 mb-2">
+                                {getOpcionBadge(posicion.opcionId)}
+                                {getEstadoBadge(posicion.estado)}
                               </div>
-                            )}
-                            {apuesta.estado === "perdida" && (
-                              <span className="text-red-600 font-medium">-{apuesta.cantidad} MXNB</span>
-                            )}
-                            {apuesta.estado === "pendiente" && (
-                              <span className="text-yellow-600 font-medium">
-                                Potencial: {apuesta.gananciasPotenciales} MXNB
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </TabsContent>
-
-              <TabsContent value="pendientes" className="space-y-4 mt-6">
-                {apuestasPendientes.map((apuesta) => (
-                  <Card key={apuesta.id} className="border-yellow-200">
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <h4 className="font-semibold text-gray-900 mb-1">{apuesta.eventoNombre}</h4>
-                          <p className="text-sm text-gray-600 mb-2">
-                            Apostaste por: <span className="font-medium">{apuesta.opcionNombre}</span>
-                          </p>
-                          <div className="flex items-center space-x-4 text-sm text-gray-500">
-                            <span>Cantidad: {apuesta.cantidad} MXNB</span>
-                            <span>Cuota: {apuesta.cuota}x</span>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <Badge variant="secondary" className="mb-2">
-                            <Clock className="w-3 h-3 mr-1" />
-                            Pendiente
-                          </Badge>
-                          <div className="text-sm text-yellow-600 font-medium">
-                            Potencial: {apuesta.gananciasPotenciales} MXNB
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </TabsContent>
-
-              <TabsContent value="ganadas" className="space-y-4 mt-6">
-                {apuestasGanadas.map((apuesta) => (
-                  <Card key={apuesta.id} className="border-green-200 bg-green-50">
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <h4 className="font-semibold text-gray-900 mb-1">{apuesta.eventoNombre}</h4>
-                          <p className="text-sm text-gray-600 mb-2">
-                            Apostaste por: <span className="font-medium">{apuesta.opcionNombre}</span>
-                          </p>
-                          <div className="flex items-center space-x-4 text-sm text-gray-500">
-                            <span>Cantidad: {apuesta.cantidad} MXNB</span>
-                            <span>Cuota: {apuesta.cuota}x</span>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <Badge className="bg-green-100 text-green-800 border-green-200 mb-2">
-                            <CheckCircle className="w-3 h-3 mr-1" />
-                            Ganada
-                          </Badge>
-                          <div className="text-sm space-y-1">
-                            <div className="text-green-600 font-medium">
-                              <TrendingUp className="w-4 h-4 inline mr-1" />+{apuesta.gananciasPotenciales} MXNB
                             </div>
-                            <Button
-                              size="sm"
-                              className="bg-green-600 hover:bg-green-700 w-full"
-                              onClick={() => manejarReclamarGanancias(apuesta.id)}
-                              disabled={isWritePending || isConfirming || claimingBetId === apuesta.id}
-                            >
-                              {claimingBetId === apuesta.id ? (
-                                <>
-                                  <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                                  Reclamando...
-                                </>
-                              ) : (
-                                "Reclamar Ganancias"
-                              )}
-                            </Button>
                           </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                            <div>
+                              <span className="text-foreground/70">Cantidad:</span>
+                              <div className="font-medium text-foreground">{posicion.cantidad} MXNB</div>
+                            </div>
+                            <div>
+                              <span className="text-foreground/70">Cuota:</span>
+                              <div className="font-medium text-foreground">{posicion.cuota}x</div>
+                            </div>
+                            <div>
+                              <span className="text-foreground/70">Ganancia Potencial:</span>
+                              <div className="font-medium text-green-600">{posicion.gananciasPotenciales} MXNB</div>
+                            </div>
+                            <div>
+                              <span className="text-foreground/70">Fecha:</span>
+                              <div className="font-medium text-foreground">
+                                {new Date(posicion.fechaApuesta).toLocaleDateString("es-ES")}
+                              </div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
               </TabsContent>
 
-              <TabsContent value="perdidas" className="space-y-4 mt-6">
-                {apuestasPerdidas.map((apuesta) => (
-                  <Card key={apuesta.id} className="border-red-200 bg-red-50">
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <h4 className="font-semibold text-gray-900 mb-1">{apuesta.eventoNombre}</h4>
-                          <p className="text-sm text-gray-600 mb-2">
-                            Apostaste por: <span className="font-medium">{apuesta.opcionNombre}</span>
-                          </p>
-                          <div className="flex items-center space-x-4 text-sm text-gray-500">
-                            <span>Cantidad: {apuesta.cantidad} MXNB</span>
-                            <span>Cuota: {apuesta.cuota}x</span>
+              <TabsContent value="cerradas" className="mt-6">
+                {posicionesCerradas.length === 0 ? (
+                  <Alert className="border-blue-200 bg-blue-50">
+                    <Clock className="h-4 w-4" />
+                    <AlertDescription>No tienes posiciones cerradas aún.</AlertDescription>
+                  </Alert>
+                ) : (
+                  <div className="space-y-4">
+                    {posicionesCerradas.map((posicion) => (
+                      <Card key={posicion.id} className="border border-primary/10 bg-background">
+                        <CardContent className="p-4">
+                          <div className="flex justify-between items-start mb-3">
+                            <div className="flex-1">
+                              <h4 className="font-semibold text-foreground mb-1">{posicion.eventoNombre}</h4>
+                              <div className="flex items-center space-x-2 mb-2">
+                                {getOpcionBadge(posicion.opcionId)}
+                                {getEstadoBadge(posicion.estado)}
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                        <div className="text-right">
-                          <Badge variant="destructive" className="mb-2">
-                            <XCircle className="w-3 h-3 mr-1" />
-                            Perdida
-                          </Badge>
-                          <div className="text-sm text-red-600 font-medium">
-                            <TrendingDown className="w-4 h-4 inline mr-1" />-{apuesta.cantidad} MXNB
+                          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
+                            <div>
+                              <span className="text-foreground/70">Cantidad:</span>
+                              <div className="font-medium text-foreground">{posicion.cantidad} MXNB</div>
+                            </div>
+                            <div>
+                              <span className="text-foreground/70">Cuota:</span>
+                              <div className="font-medium text-foreground">{posicion.cuota}x</div>
+                            </div>
+                            <div>
+                              <span className="text-foreground/70">
+                                {posicion.estado === "ganada" ? "Ganancia:" : "Pérdida:"}
+                              </span>
+                              <div
+                                className={`font-medium ${
+                                  posicion.estado === "ganada" ? "text-green-600" : "text-red-600"
+                                }`}
+                              >
+                                {posicion.estado === "ganada"
+                                  ? `+${posicion.gananciasPotenciales}`
+                                  : `-${posicion.cantidad}`}{" "}
+                                MXNB
+                              </div>
+                            </div>
+                            <div>
+                              <span className="text-foreground/70">Fecha:</span>
+                              <div className="font-medium text-foreground">
+                                {new Date(posicion.fechaApuesta).toLocaleDateString("es-ES")}
+                              </div>
+                            </div>
+                            <div>
+                              <span className="text-foreground/70">ROI:</span>
+                              <div
+                                className={`font-medium ${
+                                  posicion.estado === "ganada" ? "text-green-600" : "text-red-600"
+                                }`}
+                              >
+                                {posicion.estado === "ganada"
+                                  ? `+${(((posicion.gananciasPotenciales - posicion.cantidad) / posicion.cantidad) * 100).toFixed(1)}%`
+                                  : "-100%"}
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
               </TabsContent>
             </Tabs>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+
+        {/* Información adicional */}
+        <div className="mt-8">
+          <Card className="bg-primary/10 border-primary/20 shadow-lg">
+            <CardContent className="text-center py-6">
+              <h3 className="text-lg font-semibold text-primary mb-2">¿Necesitas ayuda?</h3>
+              <p className="text-muted-foreground text-sm mb-4">
+                Si tienes preguntas sobre tus posiciones o necesitas soporte, no dudes en contactarnos.
+              </p>
+              <Button
+                variant="outline"
+                className="border-primary text-primary hover:bg-primary hover:text-white bg-transparent"
+              >
+                <ExternalLink className="w-4 h-4 mr-2" />
+                Centro de Ayuda
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   )
 }
 
-function Label({
-  children,
-  className,
-  ...props
-}: { children: React.ReactNode; className?: string; [key: string]: any }) {
-  return (
-    <label
-      className={`text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 ${className || ""}`}
-      {...props}
-    >
-      {children}
-    </label>
-  )
+function Label({ children, className }: { children: React.ReactNode; className?: string }) {
+  return <label className={className}>{children}</label>
 }

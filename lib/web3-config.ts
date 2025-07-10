@@ -14,10 +14,10 @@ export const config = getDefaultConfig({
   ssr: true,
 })
 
-// Direcciones de contratos (reemplazar con direcciones reales)
+// Direcciones de contratos
 export const CONTRACTS = {
-  PREDICTION_MARKET: "0x1234567890123456789012345678901234567890" as `0x${string}`,
-  MXNB_TOKEN: "0x0987654321098765432109876543210987654321" as `0x${string}`,
+  PREDICTION_MARKET: "0x1234567890123456789012345678901234567890" as `0x${string}`, // Placeholder - reemplazar con dirección real
+  MXNB_TOKEN: "0x82B9e52b26A2954E113F94Ff26647754d5a4247D" as `0x${string}`, // Contrato MXNB en Arbitrum Sepolia
 } as const
 
 // ABI del contrato de predicciones (simplificado)
@@ -111,13 +111,65 @@ export const MXNB_TOKEN_ABI = [
     stateMutability: "view",
     type: "function",
   },
+  {
+    inputs: [],
+    name: "name",
+    outputs: [{ name: "", type: "string" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "symbol",
+    outputs: [{ name: "", type: "string" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "decimals",
+    outputs: [{ name: "", type: "uint8" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "totalSupply",
+    outputs: [{ name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
 ] as const
 
-// Utilidades para formatear
+// Utilidades para formatear MXNB (asumiendo 18 decimales como estándar ERC20)
 export const formatMXNB = (amount: bigint): string => {
   return (Number(amount) / 1e18).toFixed(2)
 }
 
 export const parseMXNB = (amount: string): bigint => {
   return BigInt(Math.floor(Number.parseFloat(amount) * 1e18))
+}
+
+// Función para obtener la URL del explorador de Arbitrum Sepolia
+export const getArbitrumSepoliaExplorerUrl = (hash: string) => {
+  return `https://sepolia.arbiscan.io/tx/${hash}`
+}
+
+export const getArbitrumSepoliaAddressUrl = (address: string) => {
+  return `https://sepolia.arbiscan.io/address/${address}`
+}
+
+// Función para obtener la URL del explorador según la red
+export const getExplorerUrl = (hash: string, chainId?: number) => {
+  if (chainId === arbitrumSepolia.id) {
+    return `https://sepolia.arbiscan.io/tx/${hash}`
+  }
+  return `https://arbiscan.io/tx/${hash}` // Arbitrum mainnet por defecto
+}
+
+export const getAddressExplorerUrl = (address: string, chainId?: number) => {
+  if (chainId === arbitrumSepolia.id) {
+    return `https://sepolia.arbiscan.io/address/${address}`
+  }
+  return `https://arbiscan.io/address/${address}` // Arbitrum mainnet por defecto
 }

@@ -4,6 +4,7 @@
 
 body {
   font-family: Arial, Helvetica, sans-serif;
+  background-color: #fff6e4;
 }
 
 @layer utilities {
@@ -17,42 +18,42 @@ body {
   /* Modal de RainbowKit */
   [data-rk] {
     --rk-fonts-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    --rk-colors-accentColor: #3b82f6;
+    --rk-colors-accentColor: #df3925;
     --rk-colors-accentColorForeground: #ffffff;
-    --rk-colors-actionButtonBorder: rgba(0, 0, 0, 0.04);
-    --rk-colors-actionButtonBorderMobile: rgba(0, 0, 0, 0.06);
-    --rk-colors-actionButtonSecondaryBackground: rgba(0, 0, 0, 0.06);
+    --rk-colors-actionButtonBorder: rgba(223, 57, 37, 0.2);
+    --rk-colors-actionButtonBorderMobile: rgba(223, 57, 37, 0.3);
+    --rk-colors-actionButtonSecondaryBackground: rgba(223, 57, 37, 0.1);
     --rk-colors-closeButton: rgba(60, 66, 66, 0.8);
     --rk-colors-closeButtonBackground: rgba(255, 255, 255, 0.08);
     --rk-colors-connectButtonBackground: #ffffff;
-    --rk-colors-connectButtonBackgroundError: #ff494a;
-    --rk-colors-connectButtonInnerBackground: linear-gradient(0deg, rgba(0, 0, 0, 0.03), rgba(0, 0, 0, 0.06));
-    --rk-colors-connectButtonText: #25292e;
+    --rk-colors-connectButtonBackgroundError: #df3925;
+    --rk-colors-connectButtonInnerBackground: linear-gradient(0deg, rgba(223, 57, 37, 0.03), rgba(223, 57, 37, 0.06));
+    --rk-colors-connectButtonText: #177847;
     --rk-colors-connectButtonTextError: #ffffff;
-    --rk-colors-connectionIndicator: #30e000;
+    --rk-colors-connectionIndicator: #177847;
     --rk-colors-downloadBottomCardBackground: linear-gradient(
         126deg,
-        rgba(255, 255, 255, 0) 9.49%,
-        rgba(171, 171, 171, 0.04) 71.04%
+        rgba(255, 246, 228, 0) 9.49%,
+        rgba(223, 57, 37, 0.04) 71.04%
       ), #ffffff;
     --rk-colors-downloadTopCardBackground: linear-gradient(
         126deg,
-        rgba(171, 171, 171, 0.2) 9.49%,
-        rgba(255, 255, 255, 0) 71.04%
+        rgba(223, 57, 37, 0.2) 9.49%,
+        rgba(255, 246, 228, 0) 71.04%
       ), #ffffff;
-    --rk-colors-error: #ff494a;
-    --rk-colors-generalBorder: rgba(0, 0, 0, 0.06);
-    --rk-colors-generalBorderDim: rgba(0, 0, 0, 0.03);
-    --rk-colors-menuItemBackground: rgba(60, 66, 66, 0.1);
+    --rk-colors-error: #df3925;
+    --rk-colors-generalBorder: rgba(223, 57, 37, 0.15);
+    --rk-colors-generalBorderDim: rgba(223, 57, 37, 0.08);
+    --rk-colors-menuItemBackground: rgba(23, 120, 71, 0.1);
     --rk-colors-modalBackdrop: rgba(0, 0, 0, 0.3);
-    --rk-colors-modalBackground: #ffffff;
+    --rk-colors-modalBackground: #fff6e4;
     --rk-colors-modalBorder: transparent;
-    --rk-colors-modalText: #25292e;
-    --rk-colors-modalTextDim: rgba(60, 66, 66, 0.3);
-    --rk-colors-modalTextSecondary: rgba(60, 66, 66, 0.6);
+    --rk-colors-modalText: #177847;
+    --rk-colors-modalTextDim: rgba(23, 120, 71, 0.6);
+    --rk-colors-modalTextSecondary: rgba(23, 120, 71, 0.8);
     --rk-colors-profileAction: #ffffff;
     --rk-colors-profileActionHover: rgba(255, 255, 255, 0.5);
-    --rk-colors-profileForeground: rgba(60, 66, 66, 0.06);
+    --rk-colors-profileForeground: rgba(223, 57, 37, 0.06);
     --rk-colors-selectedOptionBorder: var(--rk-colors-accentColor);
     --rk-colors-standby: #ffc901;
     --rk-blurs-modalOverlay: blur(0px);
@@ -61,12 +62,12 @@ body {
     --rk-radii-menuButton: 12px;
     --rk-radii-modal: 24px;
     --rk-radii-modalMobile: 28px;
-    --rk-shadows-connectButton: 0px 4px 12px rgba(0, 0, 0, 0.1);
+    --rk-shadows-connectButton: 0px 4px 12px rgba(223, 57, 37, 0.2);
     --rk-shadows-dialog: 0px 10px 38px rgba(0, 0, 0, 0.35), 0px 10px 20px rgba(0, 0, 0, 0.2);
-    --rk-shadows-profileDetailsAction: 0px 2px 6px rgba(37, 41, 46, 0.04);
-    --rk-shadows-selectedOption: 0px 2px 6px rgba(0, 0, 0, 0.24);
-    --rk-shadows-selectedWallet: 0px 2px 6px rgba(0, 0, 0, 0.12);
-    --rk-shadows-walletLogo: 0px 2px 16px rgba(0, 0, 0, 0.16);
+    --rk-shadows-profileDetailsAction: 0px 2px 6px rgba(223, 57, 37, 0.1);
+    --rk-shadows-selectedOption: 0px 2px 6px rgba(223, 57, 37, 0.3);
+    --rk-shadows-selectedWallet: 0px 2px 6px rgba(223, 57, 37, 0.2);
+    --rk-shadows-walletLogo: 0px 2px 16px rgba(223, 57, 37, 0.2);
   }
 
   /* Overlay del modal */
@@ -188,7 +189,7 @@ body {
 
   [data-rk] button[data-testid="rk-connect-button"]:hover {
     transform: translateY(-1px) !important;
-    box-shadow: 0px 6px 16px rgba(0, 0, 0, 0.12) !important;
+    box-shadow: 0px 6px 16px rgba(223, 57, 37, 0.2) !important;
   }
 
   /* Avatar del usuario conectado */
@@ -196,6 +197,61 @@ body {
     width: 20px !important;
     height: 20px !important;
     border-radius: 50% !important;
+  }
+
+  /* Iconos de red/chain - TAMAÑO CORREGIDO */
+  [data-rk] button[data-testid="rk-connect-button"] img[alt*="Arbitrum"],
+  [data-rk] button[data-testid="rk-connect-button"] img[alt*="arbitrum"],
+  [data-rk] button[data-testid="rk-connect-button"] img[src*="arbitrum"],
+  [data-rk] img[alt*="Arbitrum"],
+  [data-rk] img[alt*="arbitrum"],
+  [data-rk] img[src*="arbitrum"] {
+    width: 16px !important;
+    height: 16px !important;
+    border-radius: 50% !important;
+    margin-right: 6px !important;
+  }
+
+  /* Iconos de red en el dropdown de redes */
+  [data-rk] [role="menu"] img[alt*="Arbitrum"],
+  [data-rk] [role="menu"] img[alt*="arbitrum"],
+  [data-rk] [role="menu"] img[src*="arbitrum"] {
+    width: 20px !important;
+    height: 20px !important;
+    border-radius: 50% !important;
+    margin-right: 8px !important;
+  }
+
+  /* Selector de red/chain */
+  [data-rk] button[data-testid="rk-chain-button"] {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px !important;
+    padding: 6px 12px !important;
+    border-radius: var(--rk-radii-connectButton) !important;
+    background: var(--rk-colors-connectButtonBackground) !important;
+    border: 1px solid var(--rk-colors-generalBorder) !important;
+    color: var(--rk-colors-connectButtonText) !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+    box-shadow: var(--rk-shadows-connectButton) !important;
+    min-height: 36px !important;
+  }
+
+  [data-rk] button[data-testid="rk-chain-button"]:hover {
+    transform: translateY(-1px) !important;
+    box-shadow: 0px 6px 16px rgba(223, 57, 37, 0.2) !important;
+  }
+
+  /* Icono de red en el botón de chain */
+  [data-rk] button[data-testid="rk-chain-button"] img {
+    width: 16px !important;
+    height: 16px !important;
+    border-radius: 50% !important;
+    margin-right: 4px !important;
   }
 
   /* Dropdown del perfil */
@@ -230,6 +286,34 @@ body {
     background: var(--rk-colors-menuItemBackground) !important;
   }
 
+  /* Información de balance y dirección */
+  [data-rk] [role="menuitem"] div {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+  }
+
+  [data-rk] [role="menuitem"] div span:first-child {
+    font-weight: 600 !important;
+    color: var(--rk-colors-modalText) !important;
+  }
+
+  [data-rk] [role="menuitem"] div span:last-child {
+    font-size: 12px !important;
+    color: var(--rk-colors-modalTextSecondary) !important;
+    font-family: monospace !important;
+  }
+
+  /* Botón de desconectar */
+  [data-rk] [role="menuitem"]:last-child {
+    color: #df3925 !important;
+    border-top: 1px solid var(--rk-colors-generalBorder) !important;
+  }
+
+  [data-rk] [role="menuitem"]:last-child:hover {
+    background: rgba(223, 57, 37, 0.1) !important;
+  }
+
   /* Responsive */
   @media (max-width: 768px) {
     [data-rk] [role="dialog"] > div {
@@ -245,78 +329,84 @@ body {
     [data-rk] [role="dialog"] > div > div {
       padding: 20px !important;
     }
+
+    /* Botones más pequeños en móvil */
+    [data-rk] button[data-testid="rk-connect-button"] {
+      padding: 6px 12px !important;
+      font-size: 13px !important;
+    }
+
+    [data-rk] button[data-testid="rk-chain-button"] {
+      padding: 4px 8px !important;
+      font-size: 12px !important;
+      min-height: 32px !important;
+    }
+
+    /* Iconos aún más pequeños en móvil */
+    [data-rk] button[data-testid="rk-connect-button"] img[alt*="Arbitrum"],
+    [data-rk] button[data-testid="rk-connect-button"] img[alt*="arbitrum"],
+    [data-rk] button[data-testid="rk-connect-button"] img[src*="arbitrum"],
+    [data-rk] button[data-testid="rk-chain-button"] img {
+      width: 14px !important;
+      height: 14px !important;
+    }
   }
 }
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 3.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 3.9%;
+    --background: 45 100% 96%; /* #fff6e4 - warm cream */
+    --foreground: 0 0% 0%; /* black text */
+    --card: 0 0% 100%; /* white */
+    --card-foreground: 120 100% 15%; /* dark green #004d00 */
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 3.9%;
-    --primary: 0 0% 9%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 0 0% 96.1%;
-    --secondary-foreground: 0 0% 9%;
-    --muted: 0 0% 96.1%;
-    --muted-foreground: 0 0% 45.1%;
-    --accent: 0 0% 96.1%;
-    --accent-foreground: 0 0% 9%;
-    --destructive: 0 84.2% 60.2%;
+    --popover-foreground: 120 100% 15%;
+    --primary: 9 85% 52%; /* #df3925 - red */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 120 43% 34%; /* #177847 - green */
+    --secondary-foreground: 0 0% 100%;
+    --muted: 45 100% 92%;
+    --muted-foreground: 0 0% 25%;
+    --accent: 45 100% 92%;
+    --accent-foreground: 0 0% 15%;
+    --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 89.8%;
-    --input: 0 0% 89.8%;
-    --ring: 0 0% 3.9%;
+    --border: 45 50% 85%;
+    --input: 45 50% 85%;
+    --ring: 9 85% 52%;
     --chart-1: 12 76% 61%;
     --chart-2: 173 58% 39%;
     --chart-3: 197 37% 24%;
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
     --radius: 0.5rem;
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
   }
+
   .dark {
-    --background: 0 0% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 0 0% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 0 0% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 0 0% 9%;
-    --secondary: 0 0% 14.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 14.9%;
-    --muted-foreground: 0 0% 63.9%;
-    --accent: 0 0% 14.9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
+    --background: 45 100% 96%;
+    --foreground: 0 0% 0%;
+    --card: 0 0% 100%;
+    --card-foreground: 120 100% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 120 100% 15%;
+    --primary: 9 85% 52%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 120 43% 34%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 45 100% 92%;
+    --muted-foreground: 0 0% 25%;
+    --accent: 45 100% 92%;
+    --accent-foreground: 0 0% 15%;
+    --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 14.9%;
-    --input: 0 0% 14.9%;
-    --ring: 0 0% 83.1%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --border: 45 50% 85%;
+    --input: 45 50% 85%;
+    --ring: 9 85% 52%;
+    --chart-1: 12 76% 61%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
   }
 }
 

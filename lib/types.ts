@@ -2,15 +2,16 @@ export interface EventoApuesta {
   id: string
   nombre: string
   descripcion: string
-  opciones: OpcionApuesta[]
+  pregunta: string // Nueva propiedad para la pregunta específica
   fechaFin: string
   categoria: string
   estado: "activo" | "finalizado" | "cancelado"
+  opciones: [OpcionApuesta, OpcionApuesta] // Siempre exactamente 2 opciones: Sí y No
 }
 
 export interface OpcionApuesta {
-  id: string
-  nombre: string
+  id: "si" | "no" // Solo puede ser "si" o "no"
+  nombre: "Sí" | "No"
   cuota: number
   probabilidad: number
 }

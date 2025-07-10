@@ -1,12 +1,13 @@
 "use client"
 
-import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from "wagmi"
+import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt, useChainId } from "wagmi"
 import { useState, useEffect } from "react"
 import { CONTRACTS, PREDICTION_MARKET_ABI, MXNB_TOKEN_ABI, formatMXNB, parseMXNB } from "@/lib/web3-config"
 import type { EventoApuesta, ApuestaUsuario } from "@/lib/types"
 
 export function usePredictionMarket() {
   const { address, isConnected } = useAccount()
+  const chainId = useChainId()
   const { writeContract, data: hash, isPending: isWritePending } = useWriteContract()
   const [lastTxHash, setLastTxHash] = useState<`0x${string}` | undefined>()
 
@@ -23,27 +24,47 @@ export function usePredictionMarket() {
     args: address ? [address] : undefined,
     query: {
       enabled: !!address,
+      refetchInterval: 10000, // Refrescar cada 10 segundos
     },
   })
 
-  // Leer eventos activos
+  // Leer información del token MXNB
+  const { data: tokenName } = useReadContract({
+    address: CONTRACTS.MXNB_TOKEN,
+    abi: MXNB_TOKEN_ABI,
+    functionName: "name",
+  })
+
+  const { data: tokenSymbol } = useReadContract({
+    address: CONTRACTS.MXNB_TOKEN,
+    abi: MXNB_TOKEN_ABI,
+    functionName: "symbol",
+  })
+
+  const { data: tokenDecimals } = useReadContract({
+    address: CONTRACTS.MXNB_TOKEN,
+    abi: MXNB_TOKEN_ABI,
+    functionName: "decimals",
+  })
+
+  // Leer eventos activos (placeholder - en producción vendría del contrato real)
   const { data: activeEventsData, refetch: refetchEvents } = useReadContract({
     address: CONTRACTS.PREDICTION_MARKET,
     abi: PREDICTION_MARKET_ABI,
     functionName: "getActiveEvents",
     query: {
-      enabled: isConnected,
+      enabled: false, // Deshabilitado hasta tener contrato real
     },
   })
 
-  // Leer apuestas del usuario
+  // Leer apuestas del usuario (placeholder - en producción vendría del contrato real)
   const { data: userBetsData, refetch: refetchUserBets } = useReadContract({
     address: CONTRACTS.PREDICTION_MARKET,
     abi: PREDICTION_MARKET_ABI,
     functionName: "getUserBets",
     args: address ? [address] : undefined,
     query: {
-      enabled: !!address,
+      enabled: false, // Deshabilitado hasta tener contrato real
     },
   })
 
@@ -55,6 +76,7 @@ export function usePredictionMarket() {
     args: address ? [address, CONTRACTS.PREDICTION_MARKET] : undefined,
     query: {
       enabled: !!address,
+      refetchInterval: 10000, // Refrescar cada 10 segundos
     },
   })
 
@@ -152,12 +174,13 @@ export function usePredictionMarket() {
         id: event.id.toString(),
         nombre: event.name || `Evento ${index + 1}`,
         descripcion: event.description || "Descripción del evento",
+        pregunta: event.question || "¿Pregunta del evento?",
         categoria: "general",
         estado: event.isActive ? "activo" : "finalizado",
         fechaFin: new Date(Number(event.endTime) * 1000).toISOString().split("T")[0],
         opciones: [
-          { id: "1", nombre: "Opción A", cuota: 2.5, probabilidad: 40 },
-          { id: "2", nombre: "Opción B", cuota: 1.8, probabilidad: 60 },
+          { id: "si", nombre: "Sí", cuota: 2.5, probabilidad: 40 },
+          { id: "no", nombre: "No", cuota: 1.8, probabilidad: 60 },
         ],
       }))
     : []
@@ -167,8 +190,8 @@ export function usePredictionMarket() {
         id: bet.id.toString(),
         eventoId: bet.eventId.toString(),
         eventoNombre: `Evento ${bet.eventId}`,
-        opcionId: bet.optionId.toString(),
-        opcionNombre: `Opción ${bet.optionId}`,
+        opcionId: bet.optionId.toString() === "1" ? "si" : "no",
+        opcionNombre: bet.optionId.toString() === "1" ? "Sí" : "No",
         cantidad: Number(formatMXNB(bet.amount)),
         cuota: Number(bet.odds) / 100,
         estado: bet.status === 0 ? "pendiente" : bet.status === 1 ? "ganada" : "perdida",
@@ -176,6 +199,17 @@ export function usePredictionMarket() {
         gananciasPotenciales: Number(formatMXNB(bet.amount)) * (Number(bet.odds) / 100),
       }))
     : []
+
+  // Log para debugging
+  useEffect(() => {
+    if (isConnected && address) {
+      console.log("Wallet conectado:", address)
+      console.log("Chain ID:", chainId)
+      console.log("Contrato MXNB:", CONTRACTS.MXNB_TOKEN)
+      console.log("Balance MXNB:", formattedBalance)
+      console.log("Token info:", { name: tokenName, symbol: tokenSymbol, decimals: tokenDecimals })
+    }
+  }, [isConnected, address, chainId, formattedBalance, tokenName, tokenSymbol, tokenDecimals])
 
   return {
     // Estados
@@ -185,6 +219,15 @@ export function usePredictionMarket() {
     events: formattedEvents,
     userBets: formattedUserBets,
     allowance: allowance ? formatMXNB(allowance) : "0",
+    chainId,
+
+    // Información del token
+    tokenInfo: {
+      name: tokenName,
+      symbol: tokenSymbol,
+      decimals: tokenDecimals,
+      address: CONTRACTS.MXNB_TOKEN,
+    },
 
     // Estados de transacciones
     isWritePending,
