@@ -1,0 +1,330 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+/* Estilos personalizados para RainbowKit */
+@layer components {
+  /* Modal de RainbowKit */
+  [data-rk] {
+    --rk-fonts-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --rk-colors-accentColor: #3b82f6;
+    --rk-colors-accentColorForeground: #ffffff;
+    --rk-colors-actionButtonBorder: rgba(0, 0, 0, 0.04);
+    --rk-colors-actionButtonBorderMobile: rgba(0, 0, 0, 0.06);
+    --rk-colors-actionButtonSecondaryBackground: rgba(0, 0, 0, 0.06);
+    --rk-colors-closeButton: rgba(60, 66, 66, 0.8);
+    --rk-colors-closeButtonBackground: rgba(255, 255, 255, 0.08);
+    --rk-colors-connectButtonBackground: #ffffff;
+    --rk-colors-connectButtonBackgroundError: #ff494a;
+    --rk-colors-connectButtonInnerBackground: linear-gradient(0deg, rgba(0, 0, 0, 0.03), rgba(0, 0, 0, 0.06));
+    --rk-colors-connectButtonText: #25292e;
+    --rk-colors-connectButtonTextError: #ffffff;
+    --rk-colors-connectionIndicator: #30e000;
+    --rk-colors-downloadBottomCardBackground: linear-gradient(
+        126deg,
+        rgba(255, 255, 255, 0) 9.49%,
+        rgba(171, 171, 171, 0.04) 71.04%
+      ), #ffffff;
+    --rk-colors-downloadTopCardBackground: linear-gradient(
+        126deg,
+        rgba(171, 171, 171, 0.2) 9.49%,
+        rgba(255, 255, 255, 0) 71.04%
+      ), #ffffff;
+    --rk-colors-error: #ff494a;
+    --rk-colors-generalBorder: rgba(0, 0, 0, 0.06);
+    --rk-colors-generalBorderDim: rgba(0, 0, 0, 0.03);
+    --rk-colors-menuItemBackground: rgba(60, 66, 66, 0.1);
+    --rk-colors-modalBackdrop: rgba(0, 0, 0, 0.3);
+    --rk-colors-modalBackground: #ffffff;
+    --rk-colors-modalBorder: transparent;
+    --rk-colors-modalText: #25292e;
+    --rk-colors-modalTextDim: rgba(60, 66, 66, 0.3);
+    --rk-colors-modalTextSecondary: rgba(60, 66, 66, 0.6);
+    --rk-colors-profileAction: #ffffff;
+    --rk-colors-profileActionHover: rgba(255, 255, 255, 0.5);
+    --rk-colors-profileForeground: rgba(60, 66, 66, 0.06);
+    --rk-colors-selectedOptionBorder: var(--rk-colors-accentColor);
+    --rk-colors-standby: #ffc901;
+    --rk-blurs-modalOverlay: blur(0px);
+    --rk-radii-actionButton: 12px;
+    --rk-radii-connectButton: 12px;
+    --rk-radii-menuButton: 12px;
+    --rk-radii-modal: 24px;
+    --rk-radii-modalMobile: 28px;
+    --rk-shadows-connectButton: 0px 4px 12px rgba(0, 0, 0, 0.1);
+    --rk-shadows-dialog: 0px 10px 38px rgba(0, 0, 0, 0.35), 0px 10px 20px rgba(0, 0, 0, 0.2);
+    --rk-shadows-profileDetailsAction: 0px 2px 6px rgba(37, 41, 46, 0.04);
+    --rk-shadows-selectedOption: 0px 2px 6px rgba(0, 0, 0, 0.24);
+    --rk-shadows-selectedWallet: 0px 2px 6px rgba(0, 0, 0, 0.12);
+    --rk-shadows-walletLogo: 0px 2px 16px rgba(0, 0, 0, 0.16);
+  }
+
+  /* Overlay del modal */
+  [data-rk] [role="dialog"] {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    z-index: 9999 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: var(--rk-colors-modalBackdrop) !important;
+  }
+
+  /* Contenedor del modal */
+  [data-rk] [role="dialog"] > div {
+    position: relative !important;
+    background: var(--rk-colors-modalBackground) !important;
+    border-radius: var(--rk-radii-modal) !important;
+    box-shadow: var(--rk-shadows-dialog) !important;
+    max-width: 408px !important;
+    width: 100% !important;
+    margin: 16px !important;
+    max-height: calc(100vh - 32px) !important;
+    overflow: hidden !important;
+  }
+
+  /* Header del modal */
+  [data-rk] [role="dialog"] h1 {
+    font-size: 18px !important;
+    font-weight: 600 !important;
+    color: var(--rk-colors-modalText) !important;
+    text-align: center !important;
+    margin: 0 !important;
+    padding: 24px 24px 0 24px !important;
+  }
+
+  /* Contenido del modal */
+  [data-rk] [role="dialog"] > div > div {
+    padding: 24px !important;
+  }
+
+  /* Lista de wallets */
+  [data-rk] [role="dialog"] button {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    width: 100% !important;
+    padding: 12px 16px !important;
+    margin-bottom: 8px !important;
+    border: 1px solid var(--rk-colors-generalBorder) !important;
+    border-radius: var(--rk-radii-actionButton) !important;
+    background: var(--rk-colors-connectButtonBackground) !important;
+    color: var(--rk-colors-modalText) !important;
+    font-size: 16px !important;
+    font-weight: 500 !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+  }
+
+  [data-rk] [role="dialog"] button:hover {
+    background: var(--rk-colors-actionButtonSecondaryBackground) !important;
+    transform: translateY(-1px) !important;
+  }
+
+  /* Iconos de wallets */
+  [data-rk] [role="dialog"] button img {
+    width: 32px !important;
+    height: 32px !important;
+    margin-right: 12px !important;
+    border-radius: 8px !important;
+  }
+
+  /* Botón de cerrar */
+  [data-rk] [role="dialog"] button[aria-label*="Close"] {
+    position: absolute !important;
+    top: 16px !important;
+    right: 16px !important;
+    width: 32px !important;
+    height: 32px !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+    border-radius: 50% !important;
+    background: var(--rk-colors-closeButtonBackground) !important;
+    color: var(--rk-colors-closeButton) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  /* Texto de estado de conexión */
+  [data-rk] [role="dialog"] p {
+    color: var(--rk-colors-modalTextSecondary) !important;
+    font-size: 14px !important;
+    text-align: center !important;
+    margin: 16px 0 !important;
+  }
+
+  /* Botón conectado */
+  [data-rk] button[data-testid="rk-connect-button"] {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    padding: 8px 16px !important;
+    border-radius: var(--rk-radii-connectButton) !important;
+    background: var(--rk-colors-connectButtonBackground) !important;
+    border: 1px solid var(--rk-colors-generalBorder) !important;
+    color: var(--rk-colors-connectButtonText) !important;
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+    box-shadow: var(--rk-shadows-connectButton) !important;
+  }
+
+  [data-rk] button[data-testid="rk-connect-button"]:hover {
+    transform: translateY(-1px) !important;
+    box-shadow: 0px 6px 16px rgba(0, 0, 0, 0.12) !important;
+  }
+
+  /* Avatar del usuario conectado */
+  [data-rk] button[data-testid="rk-connect-button"] img {
+    width: 20px !important;
+    height: 20px !important;
+    border-radius: 50% !important;
+  }
+
+  /* Dropdown del perfil */
+  [data-rk] [role="menu"] {
+    position: absolute !important;
+    top: 100% !important;
+    right: 0 !important;
+    margin-top: 8px !important;
+    background: var(--rk-colors-modalBackground) !important;
+    border: 1px solid var(--rk-colors-generalBorder) !important;
+    border-radius: var(--rk-radii-menuButton) !important;
+    box-shadow: var(--rk-shadows-dialog) !important;
+    min-width: 200px !important;
+    overflow: hidden !important;
+    z-index: 10000 !important;
+  }
+
+  [data-rk] [role="menuitem"] {
+    display: flex !important;
+    align-items: center !important;
+    width: 100% !important;
+    padding: 12px 16px !important;
+    border: none !important;
+    background: transparent !important;
+    color: var(--rk-colors-modalText) !important;
+    font-size: 14px !important;
+    cursor: pointer !important;
+    transition: background-color 0.2s ease !important;
+  }
+
+  [data-rk] [role="menuitem"]:hover {
+    background: var(--rk-colors-menuItemBackground) !important;
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    [data-rk] [role="dialog"] > div {
+      margin: 8px !important;
+      border-radius: var(--rk-radii-modalMobile) !important;
+    }
+
+    [data-rk] [role="dialog"] h1 {
+      font-size: 16px !important;
+      padding: 20px 20px 0 20px !important;
+    }
+
+    [data-rk] [role="dialog"] > div > div {
+      padding: 20px !important;
+    }
+  }
+}
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 3.9%;
+    --primary: 0 0% 9%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 0 0% 96.1%;
+    --secondary-foreground: 0 0% 9%;
+    --muted: 0 0% 96.1%;
+    --muted-foreground: 0 0% 45.1%;
+    --accent: 0 0% 96.1%;
+    --accent-foreground: 0 0% 9%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 89.8%;
+    --input: 0 0% 89.8%;
+    --ring: 0 0% 3.9%;
+    --chart-1: 12 76% 61%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
+    --radius: 0.5rem;
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+  .dark {
+    --background: 0 0% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 0 0% 3.9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 0 0% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 0 0% 98%;
+    --primary-foreground: 0 0% 9%;
+    --secondary: 0 0% 14.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 0 0% 14.9%;
+    --muted-foreground: 0 0% 63.9%;
+    --accent: 0 0% 14.9%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 14.9%;
+    --input: 0 0% 14.9%;
+    --ring: 0 0% 83.1%;
+    --chart-1: 220 70% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
