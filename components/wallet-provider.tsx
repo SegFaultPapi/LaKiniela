@@ -14,6 +14,8 @@ interface WalletContextType {
   isConnected: boolean
   address: string | undefined
   balance: string
+  balanceLoading: boolean
+  balanceError: any
   chainId: number
 
   // Datos
@@ -46,6 +48,7 @@ interface WalletContextType {
   refetchBalance: () => void
   refetchEvents: () => void
   refetchUserBets: () => void
+  forceRefreshBalance: () => Promise<void>
 }
 
 const WalletContext = createContext<WalletContextType | undefined>(undefined)

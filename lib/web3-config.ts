@@ -9,7 +9,7 @@ export const config = getDefaultConfig({
   chains: [arbitrum, arbitrumSepolia],
   transports: {
     [arbitrum.id]: http(),
-    [arbitrumSepolia.id]: http(),
+    [arbitrumSepolia.id]: http("https://sepolia-rollup.arbitrum.io/rpc"),
   },
   ssr: true,
 })
@@ -89,7 +89,7 @@ export const MXNB_TOKEN_ABI = [
     name: "balanceOf",
     outputs: [{ name: "", type: "uint256" }],
     stateMutability: "view",
-    type: "function",
+    type: "function", 
   },
   {
     inputs: [
@@ -100,6 +100,7 @@ export const MXNB_TOKEN_ABI = [
     outputs: [{ name: "", type: "bool" }],
     stateMutability: "nonpayable",
     type: "function",
+    constant: true,
   },
   {
     inputs: [
@@ -141,13 +142,19 @@ export const MXNB_TOKEN_ABI = [
   },
 ] as const
 
-// Utilidades para formatear MXNB (asumiendo 18 decimales como estándar ERC20)
+// Utilidades para formatear MXNB (usando 6 decimales como especificado en el contrato)
 export const formatMXNB = (amount: bigint): string => {
-  return (Number(amount) / 1e18).toFixed(2)
+  console.log("🔧 formatMXNB input:", amount.toString())
+  const result = (Number(amount) / 1e6).toFixed(2) // Cambiar de 1e18 a 1e6
+  console.log("🔧 formatMXNB output:", result)
+  return result
 }
 
 export const parseMXNB = (amount: string): bigint => {
-  return BigInt(Math.floor(Number.parseFloat(amount) * 1e18))
+  console.log("🔧 parseMXNB input:", amount)
+  const result = BigInt(Math.floor(Number.parseFloat(amount) * 1e6)) // Cambiar de 1e18 a 1e6
+  console.log("🔧 parseMXNB output:", result.toString())
+  return result
 }
 
 // Función para obtener la URL del explorador de Arbitrum Sepolia

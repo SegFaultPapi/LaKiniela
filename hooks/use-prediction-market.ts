@@ -15,6 +15,7 @@ export function usePredictionMarket() {
   // Estados locales para markets
   const [localMarkets, setLocalMarkets] = useState<MarketData[]>([])
   const [localParticipations, setLocalParticipations] = useState<UserParticipation[]>([])
+  const [localBalance, setLocalBalance] = useState<string>("0.00")
 
   // Esperar confirmación de transacción
   const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
@@ -22,7 +23,7 @@ export function usePredictionMarket() {
   })
 
   // Leer balance de MXNB
-  const { data: mxnbBalance, refetch: refetchBalance, error: balanceError } = useReadContract({
+  const { data: mxnbBalance, refetch: refetchBalance, error: balanceError, isLoading: balanceLoading } = useReadContract({
     address: CONTRACTS.MXNB_TOKEN,
     abi: MXNB_TOKEN_ABI,
     functionName: "balanceOf",
@@ -106,10 +107,14 @@ export function usePredictionMarket() {
       throw new Error("Cantidad inválida")
     }
 
-    // Verificar balance
-    const currentBalance = mxnbBalance ? Number(formatMXNB(mxnbBalance)) : 0
+    // Verificar balance usando el balance local
+    const currentBalance = Number.parseFloat(localBalance)
+    console.log("💰 Verificando balance para participación:")
+    console.log("  - Balance local:", currentBalance, "MXNB")
+    console.log("  - Cantidad solicitada:", amount, "MXNB")
+    
     if (currentBalance < amount) {
-      throw new Error("Balance insuficiente")
+      throw new Error(`Balance insuficiente. Tienes ${currentBalance} MXNB, necesitas ${amount} MXNB`)
     }
 
     // Participar en el market local
@@ -196,6 +201,49 @@ export function usePredictionMarket() {
   // Formatear datos para la UI
   const formattedBalance = mxnbBalance ? formatMXNB(mxnbBalance) : "0.00"
 
+  // Forzar actualización del balance cuando cambie
+  useEffect(() => {
+    if (mxnbBalance !== undefined) {
+      const newBalance = formatMXNB(mxnbBalance)
+      setLocalBalance(newBalance)
+      console.log("🔄 Balance actualizado en hook:", newBalance)
+    }
+  }, [mxnbBalance])
+
+  // Función para forzar actualización del balance
+  const forceRefreshBalance = async () => {
+    console.log("🔄 Forzando actualización del balance...")
+    try {
+      await refetchBalance()
+      // También hacer una llamada directa para verificar
+      if (address) {
+        const response = await fetch("https://sepolia-rollup.arbitrum.io/rpc", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            method: "eth_call",
+            params: [{
+              to: CONTRACTS.MXNB_TOKEN,
+              data: "0x70a08231000000000000000000000000" + address.slice(2),
+            }, "latest"],
+            id: 1,
+          }),
+        })
+        
+        const result = await response.json()
+        if (result.result) {
+          const balanceWei = BigInt(result.result)
+          const balanceEth = Number(balanceWei) / 1e6 // Cambiar de 1e18 a 1e6
+          setLocalBalance(balanceEth.toFixed(2))
+          console.log("✅ Balance actualizado directamente:", balanceEth.toFixed(2))
+        }
+      }
+    } catch (error) {
+      console.error("❌ Error al forzar actualización:", error)
+    }
+  }
+
   // Convertir markets locales a formato EventoApuesta
   const formattedEvents: EventoApuesta[] = localMarkets.map(market => ({
     id: market.id,
@@ -230,21 +278,33 @@ export function usePredictionMarket() {
   // Log para debugging
   useEffect(() => {
     if (isConnected && address) {
+      console.log("=== DEBUG INFO ===")
       console.log("Wallet conectado:", address)
       console.log("Chain ID:", chainId)
       console.log("Contrato MXNB:", CONTRACTS.MXNB_TOKEN)
-      console.log("Balance MXNB:", formattedBalance)
-      console.log("Token info:", { name: tokenName, symbol: tokenSymbol, decimals: tokenDecimals })
+      console.log("Balance MXNB (raw):", mxnbBalance)
+      console.log("Balance MXNB (formatted):", formattedBalance)
+      console.log("Balance loading:", balanceLoading)
+      console.log("Balance error:", balanceError)
+      console.log("Token name:", tokenName)
+      console.log("Token symbol:", tokenSymbol)
+      console.log("Token decimals:", tokenDecimals)
+      console.log("Token name error:", tokenNameError)
+      console.log("Token symbol error:", tokenSymbolError)
+      console.log("Token decimals error:", tokenDecimalsError)
       console.log("Markets locales:", localMarkets.length)
       console.log("Participaciones locales:", localParticipations.length)
+      console.log("==================")
     }
-  }, [isConnected, address, chainId, formattedBalance, tokenName, tokenSymbol, tokenDecimals, localMarkets.length, localParticipations.length])
+  }, [isConnected, address, chainId, formattedBalance, tokenName, tokenSymbol, tokenDecimals, localMarkets.length, localParticipations.length, mxnbBalance, balanceLoading, balanceError, tokenNameError, tokenSymbolError, tokenDecimalsError])
 
   return {
     // Estados
     isConnected,
     address,
-    balance: formattedBalance,
+    balance: localBalance, // Usar balance local
+    balanceLoading,
+    balanceError,
     events: formattedEvents,
     userBets: formattedUserBets,
     allowance: allowance ? formatMXNB(allowance) : "0",
@@ -275,5 +335,6 @@ export function usePredictionMarket() {
     refetchBalance,
     refetchEvents: loadLocalMarkets,
     refetchUserBets: loadLocalParticipations,
+    forceRefreshBalance,
   }
 }
