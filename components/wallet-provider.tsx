@@ -14,11 +14,20 @@ interface WalletContextType {
   isConnected: boolean
   address: string | undefined
   balance: string
+  chainId: number
 
   // Datos
   events: any[]
   userBets: any[]
   allowance: string
+
+  // Información del token
+  tokenInfo: {
+    name: string | undefined
+    symbol: string | undefined
+    decimals: number | undefined
+    address: `0x${string}`
+  }
 
   // Estados de transacciones
   isWritePending: boolean
@@ -27,9 +36,11 @@ interface WalletContextType {
   lastTxHash: `0x${string}` | undefined
 
   // Funciones
-  placeBet: (eventId: string, optionId: string, amount: string) => Promise<`0x${string}` | undefined>
+  placeBet: (eventId: string, optionId: string, amount: string) => Promise<number | undefined>
   claimReward: (betId: string) => Promise<`0x${string}` | undefined>
   approveMXNB: (amount: string) => Promise<`0x${string}` | undefined>
+  createMarket: (marketData: any) => any
+  participateInMarket: (marketId: string, opcionId: "si" | "no", mxnbAmount: string) => Promise<number | undefined>
 
   // Funciones de refetch
   refetchBalance: () => void

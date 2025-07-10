@@ -3,6 +3,7 @@
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt, useChainId } from "wagmi"
 import { useState, useEffect } from "react"
 import { CONTRACTS, PREDICTION_MARKET_ABI, MXNB_TOKEN_ABI, formatMXNB, parseMXNB } from "@/lib/web3-config"
+import { MarketStorage, type MarketData, type UserParticipation } from "@/lib/market-storage"
 import type { EventoApuesta, ApuestaUsuario } from "@/lib/types"
 
 export function usePredictionMarket() {
@@ -11,13 +12,17 @@ export function usePredictionMarket() {
   const { writeContract, data: hash, isPending: isWritePending } = useWriteContract()
   const [lastTxHash, setLastTxHash] = useState<`0x${string}` | undefined>()
 
+  // Estados locales para markets
+  const [localMarkets, setLocalMarkets] = useState<MarketData[]>([])
+  const [localParticipations, setLocalParticipations] = useState<UserParticipation[]>([])
+
   // Esperar confirmación de transacción
   const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
     hash: lastTxHash,
   })
 
   // Leer balance de MXNB
-  const { data: mxnbBalance, refetch: refetchBalance } = useReadContract({
+  const { data: mxnbBalance, refetch: refetchBalance, error: balanceError } = useReadContract({
     address: CONTRACTS.MXNB_TOKEN,
     abi: MXNB_TOKEN_ABI,
     functionName: "balanceOf",
@@ -29,43 +34,22 @@ export function usePredictionMarket() {
   })
 
   // Leer información del token MXNB
-  const { data: tokenName } = useReadContract({
+  const { data: tokenName, error: tokenNameError } = useReadContract({
     address: CONTRACTS.MXNB_TOKEN,
     abi: MXNB_TOKEN_ABI,
     functionName: "name",
   })
 
-  const { data: tokenSymbol } = useReadContract({
+  const { data: tokenSymbol, error: tokenSymbolError } = useReadContract({
     address: CONTRACTS.MXNB_TOKEN,
     abi: MXNB_TOKEN_ABI,
     functionName: "symbol",
   })
 
-  const { data: tokenDecimals } = useReadContract({
+  const { data: tokenDecimals, error: tokenDecimalsError } = useReadContract({
     address: CONTRACTS.MXNB_TOKEN,
     abi: MXNB_TOKEN_ABI,
     functionName: "decimals",
-  })
-
-  // Leer eventos activos (placeholder - en producción vendría del contrato real)
-  const { data: activeEventsData, refetch: refetchEvents } = useReadContract({
-    address: CONTRACTS.PREDICTION_MARKET,
-    abi: PREDICTION_MARKET_ABI,
-    functionName: "getActiveEvents",
-    query: {
-      enabled: false, // Deshabilitado hasta tener contrato real
-    },
-  })
-
-  // Leer apuestas del usuario (placeholder - en producción vendría del contrato real)
-  const { data: userBetsData, refetch: refetchUserBets } = useReadContract({
-    address: CONTRACTS.PREDICTION_MARKET,
-    abi: PREDICTION_MARKET_ABI,
-    functionName: "getUserBets",
-    args: address ? [address] : undefined,
-    query: {
-      enabled: false, // Deshabilitado hasta tener contrato real
-    },
   })
 
   // Leer allowance para el contrato de predicciones
@@ -80,7 +64,69 @@ export function usePredictionMarket() {
     },
   })
 
-  // Función para aprobar tokens MXNB
+  // Cargar markets locales
+  const loadLocalMarkets = () => {
+    const markets = MarketStorage.getMarkets()
+    setLocalMarkets(markets)
+  }
+
+  // Cargar participaciones locales
+  const loadLocalParticipations = () => {
+    const participations = MarketStorage.getParticipations(address)
+    setLocalParticipations(participations)
+  }
+
+  // Función para crear market
+  const createMarket = (marketData: {
+    nombre: string
+    descripcion: string
+    pregunta: string
+    categoria: string
+    fechaFin: string
+    poolInicial: number
+  }) => {
+    if (!address) throw new Error("Wallet no conectado")
+
+    const nuevoMarket = MarketStorage.createMarket({
+      ...marketData,
+      creador: address,
+      estado: "activo"
+    })
+
+    loadLocalMarkets()
+    return nuevoMarket
+  }
+
+  // Función para participar en market
+  const participateInMarket = async (marketId: string, opcionId: "si" | "no", mxnbAmount: string) => {
+    if (!address) throw new Error("Wallet no conectado")
+
+    const amount = Number.parseFloat(mxnbAmount)
+    if (isNaN(amount) || amount <= 0) {
+      throw new Error("Cantidad inválida")
+    }
+
+    // Verificar balance
+    const currentBalance = mxnbBalance ? Number(formatMXNB(mxnbBalance)) : 0
+    if (currentBalance < amount) {
+      throw new Error("Balance insuficiente")
+    }
+
+    // Participar en el market local
+    const result = MarketStorage.participateInMarket(address, marketId, opcionId, amount)
+    
+    if (!result.success) {
+      throw new Error(result.error || "Error al participar en el market")
+    }
+
+    // Recargar datos
+    loadLocalMarkets()
+    loadLocalParticipations()
+
+    return result.sharesCompradas
+  }
+
+  // Función para aprobar tokens MXNB (mantener para futuras integraciones)
   const approveMXNB = async (amount: string) => {
     if (!address) throw new Error("Wallet no conectado")
 
@@ -102,36 +148,9 @@ export function usePredictionMarket() {
     }
   }
 
-  // Función para realizar apuesta
+  // Función para realizar apuesta (mantener compatibilidad)
   const placeBet = async (eventId: string, optionId: string, amount: string) => {
-    if (!address) throw new Error("Wallet no conectado")
-
-    const amountBigInt = parseMXNB(amount)
-    const eventIdBigInt = BigInt(eventId)
-    const optionIdBigInt = BigInt(optionId)
-
-    // Verificar si necesitamos aprobar tokens
-    const currentAllowance = allowance || 0n
-    if (currentAllowance < amountBigInt) {
-      await approveMXNB(amount)
-      // Esperar a que se confirme la aprobación antes de continuar
-      return
-    }
-
-    try {
-      const txHash = await writeContract({
-        address: CONTRACTS.PREDICTION_MARKET,
-        abi: PREDICTION_MARKET_ABI,
-        functionName: "placeBet",
-        args: [eventIdBigInt, optionIdBigInt, amountBigInt],
-      })
-
-      setLastTxHash(txHash)
-      return txHash
-    } catch (error) {
-      console.error("Error al realizar apuesta:", error)
-      throw error
-    }
+    return participateInMarket(eventId, optionId as "si" | "no", amount)
   }
 
   // Función para reclamar recompensas
@@ -160,45 +179,53 @@ export function usePredictionMarket() {
   useEffect(() => {
     if (isConfirmed) {
       refetchBalance()
-      refetchUserBets()
-      refetchEvents()
       refetchAllowance()
+      loadLocalMarkets()
+      loadLocalParticipations()
     }
-  }, [isConfirmed, refetchBalance, refetchUserBets, refetchEvents, refetchAllowance])
+  }, [isConfirmed, refetchBalance, refetchAllowance])
+
+  // Cargar datos locales al conectar wallet
+  useEffect(() => {
+    if (isConnected && address) {
+      loadLocalMarkets()
+      loadLocalParticipations()
+    }
+  }, [isConnected, address])
 
   // Formatear datos para la UI
   const formattedBalance = mxnbBalance ? formatMXNB(mxnbBalance) : "0.00"
 
-  const formattedEvents: EventoApuesta[] = activeEventsData
-    ? activeEventsData.map((event: any, index: number) => ({
-        id: event.id.toString(),
-        nombre: event.name || `Evento ${index + 1}`,
-        descripcion: event.description || "Descripción del evento",
-        pregunta: event.question || "¿Pregunta del evento?",
-        categoria: "general",
-        estado: event.isActive ? "activo" : "finalizado",
-        fechaFin: new Date(Number(event.endTime) * 1000).toISOString().split("T")[0],
-        opciones: [
-          { id: "si", nombre: "Sí", cuota: 2.5, probabilidad: 40 },
-          { id: "no", nombre: "No", cuota: 1.8, probabilidad: 60 },
-        ],
-      }))
-    : []
+  // Convertir markets locales a formato EventoApuesta
+  const formattedEvents: EventoApuesta[] = localMarkets.map(market => ({
+    id: market.id,
+    nombre: market.nombre,
+    descripcion: market.descripcion,
+    pregunta: market.pregunta,
+    categoria: market.categoria,
+    estado: market.estado,
+    fechaFin: market.fechaFin,
+    opciones: market.opciones
+  }))
 
-  const formattedUserBets: ApuestaUsuario[] = userBetsData
-    ? userBetsData.map((bet: any) => ({
-        id: bet.id.toString(),
-        eventoId: bet.eventId.toString(),
-        eventoNombre: `Evento ${bet.eventId}`,
-        opcionId: bet.optionId.toString() === "1" ? "si" : "no",
-        opcionNombre: bet.optionId.toString() === "1" ? "Sí" : "No",
-        cantidad: Number(formatMXNB(bet.amount)),
-        cuota: Number(bet.odds) / 100,
-        estado: bet.status === 0 ? "pendiente" : bet.status === 1 ? "ganada" : "perdida",
-        fechaApuesta: new Date(Number(bet.timestamp) * 1000).toISOString().split("T")[0],
-        gananciasPotenciales: Number(formatMXNB(bet.amount)) * (Number(bet.odds) / 100),
-      }))
-    : []
+  // Convertir participaciones locales a formato ApuestaUsuario
+  const formattedUserBets: ApuestaUsuario[] = localParticipations.map(participation => {
+    const market = localMarkets.find(m => m.id === participation.marketId)
+    const gananciasPotenciales = MarketStorage.calcularGananciasPotenciales(address || "", participation.marketId)
+    
+    return {
+      id: `${participation.marketId}-${participation.opcionId}`,
+      eventoId: participation.marketId,
+      eventoNombre: market?.nombre || "Market desconocido",
+      opcionId: participation.opcionId,
+      opcionNombre: participation.opcionId === "si" ? "Sí" : "No",
+      cantidad: participation.mxnbInvertido,
+      cuota: participation.precioCompra,
+      estado: market?.estado === "finalizado" ? "pendiente" : "pendiente", // Simplificado por ahora
+      fechaApuesta: participation.fechaParticipacion.split("T")[0],
+      gananciasPotenciales
+    }
+  })
 
   // Log para debugging
   useEffect(() => {
@@ -208,8 +235,10 @@ export function usePredictionMarket() {
       console.log("Contrato MXNB:", CONTRACTS.MXNB_TOKEN)
       console.log("Balance MXNB:", formattedBalance)
       console.log("Token info:", { name: tokenName, symbol: tokenSymbol, decimals: tokenDecimals })
+      console.log("Markets locales:", localMarkets.length)
+      console.log("Participaciones locales:", localParticipations.length)
     }
-  }, [isConnected, address, chainId, formattedBalance, tokenName, tokenSymbol, tokenDecimals])
+  }, [isConnected, address, chainId, formattedBalance, tokenName, tokenSymbol, tokenDecimals, localMarkets.length, localParticipations.length])
 
   return {
     // Estados
@@ -239,10 +268,12 @@ export function usePredictionMarket() {
     placeBet,
     claimReward,
     approveMXNB,
+    createMarket,
+    participateInMarket,
 
     // Funciones de refetch
     refetchBalance,
-    refetchEvents,
-    refetchUserBets,
+    refetchEvents: loadLocalMarkets,
+    refetchUserBets: loadLocalParticipations,
   }
 }
