@@ -1,6 +1,6 @@
 "use client"
 
-import { useWallet } from "@/components/wallet-provider"
+import { usePredictionMarket } from "@/hooks/use-prediction-market"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -14,7 +14,11 @@ export function DebugInfo() {
     chainId,
     tokenInfo,
     refetchBalance,
-  } = useWallet()
+  } = usePredictionMarket()
+
+  const handleRefresh = () => {
+    refetchBalance()
+  }
 
   if (!isConnected) {
     return null
@@ -53,13 +57,13 @@ export function DebugInfo() {
             </div>
           </div>
         </div>
-        
+
         <div className="flex justify-between items-center">
           <Badge variant="outline" className="text-yellow-800 border-yellow-600">
             {chainId === 421614 ? "Red Correcta" : "Red Incorrecta"}
             {chainId === 421614 ? <CheckCircle className="w-3 h-3 ml-1" /> : <AlertCircle className="w-3 h-3 ml-1" />}
           </Badge>
-          <Button size="sm" variant="outline" onClick={refetchBalance} className="text-yellow-800 border-yellow-600">
+          <Button size="sm" variant="outline" onClick={handleRefresh} className="text-yellow-800 border-yellow-600">
             <RefreshCw className="w-4 h-4 mr-1" />
             Refrescar
           </Button>

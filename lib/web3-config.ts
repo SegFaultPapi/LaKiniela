@@ -2,14 +2,14 @@ import { getDefaultConfig } from "@rainbow-me/rainbowkit"
 import { arbitrum, arbitrumSepolia } from "wagmi/chains"
 import { http } from "viem"
 
-// Configuración de RainbowKit y wagmi
+// Configuración optimizada de RainbowKit y wagmi para QR codes
 export const config = getDefaultConfig({
   appName: "La Kiniela",
-  projectId: process.env.NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID || "your-project-id",
-  chains: [arbitrum, arbitrumSepolia],
+  projectId: "a72914e54bf5416051c0e91728138d63", // ProjectId DE LA KINIELA - Preguntar a Andrés en caso de error
+  chains: [arbitrumSepolia, arbitrum],
   transports: {
-    [arbitrum.id]: http(),
-    [arbitrumSepolia.id]: http(),
+    [arbitrum.id]: http("https://arb1.arbitrum.io/rpc"),
+    [arbitrumSepolia.id]: http("https://sepolia-rollup.arbitrum.io/rpc"),
   },
   ssr: true,
 })

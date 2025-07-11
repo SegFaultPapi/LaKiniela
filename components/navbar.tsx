@@ -2,16 +2,14 @@
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { ConnectButton } from "@rainbow-me/rainbowkit"
-import { useWallet } from "@/components/wallet-provider"
-import { Menu, X, Wallet } from "lucide-react"
+import { SimpleWalletConnect } from "@/components/simple-wallet-connect"
+import { Menu, X } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 
 export function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
-  const { isConnected, balance } = useWallet()
   const pathname = usePathname()
 
   const navItems = [
@@ -53,29 +51,7 @@ export function Navbar() {
             </div>
 
             {/* Wallet Connection */}
-            <div className="flex items-center space-x-4">
-              {isConnected && (
-                <div className="flex items-center space-x-2 bg-white border border-primary/20 px-3 py-2 rounded-lg">
-                  <Wallet className="w-4 h-4 text-primary" />
-                  <span className="text-sm font-medium text-foreground">{balance} MXNB</span>
-                </div>
-              )}
-              <ConnectButton
-                label="Conectar"
-                accountStatus={{
-                  smallScreen: "avatar",
-                  largeScreen: "full",
-                }}
-                chainStatus={{
-                  smallScreen: "icon",
-                  largeScreen: "full",
-                }}
-                showBalance={{
-                  smallScreen: false,
-                  largeScreen: false,
-                }}
-              />
-            </div>
+            <SimpleWalletConnect />
           </div>
 
           {/* Mobile menu button */}
@@ -110,17 +86,9 @@ export function Navbar() {
                 </Link>
               ))}
 
-              {/* Mobile Wallet Info */}
-              {isConnected && (
-                <div className="flex items-center justify-center space-x-2 bg-white border border-primary/20 px-3 py-2 rounded-lg">
-                  <Wallet className="w-4 h-4 text-primary" />
-                  <span className="text-sm font-medium text-foreground">{balance} MXNB</span>
-                </div>
-              )}
-
-              {/* Mobile Connect Button */}
+              {/* Mobile Wallet Connection */}
               <div className="flex justify-center pt-2">
-                <ConnectButton label="Conectar Wallet" accountStatus="full" chainStatus="full" showBalance={false} />
+                <SimpleWalletConnect />
               </div>
             </div>
           </div>
