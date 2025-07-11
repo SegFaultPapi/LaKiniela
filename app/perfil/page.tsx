@@ -20,13 +20,17 @@ import {
   Copy,
   RefreshCw,
 } from "lucide-react"
-import { useWallet } from "@/components/wallet-provider"
+import { usePredictionMarket } from "@/hooks/use-prediction-market"
 import { ConnectButton } from "@rainbow-me/rainbowkit"
 import type { ApuestaUsuario } from "@/lib/types"
 
 export default function PerfilPage() {
-  const { isConnected, address, balance, userBets, refetchBalance, refetchUserBets } = useWallet()
+  const { isConnected, address, balance, userBets, refetchBalance, refetchUserBets } = usePredictionMarket()
   const [copiedAddress, setCopiedAddress] = useState(false)
+
+  const handleRefreshBalance = () => {
+    refetchBalance()
+  }
 
   // Datos de ejemplo para el perfil (en producción vendrían del contrato)
   const posicionesEjemplo: ApuestaUsuario[] = [
@@ -202,7 +206,7 @@ export default function PerfilPage() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={refetchBalance}
+                      onClick={handleRefreshBalance}
                       className="h-8 w-8 p-0 text-card-foreground hover:text-primary"
                     >
                       <RefreshCw className="w-4 h-4" />
@@ -354,9 +358,8 @@ export default function PerfilPage() {
                                 {posicion.estado === "ganada" ? "Ganancia:" : "Pérdida:"}
                               </span>
                               <div
-                                className={`font-medium ${
-                                  posicion.estado === "ganada" ? "text-green-600" : "text-red-600"
-                                }`}
+                                className={`font-medium ${posicion.estado === "ganada" ? "text-green-600" : "text-red-600"
+                                  }`}
                               >
                                 {posicion.estado === "ganada"
                                   ? `+${posicion.gananciasPotenciales}`
@@ -373,9 +376,8 @@ export default function PerfilPage() {
                             <div>
                               <span className="text-foreground/70">ROI:</span>
                               <div
-                                className={`font-medium ${
-                                  posicion.estado === "ganada" ? "text-green-600" : "text-red-600"
-                                }`}
+                                className={`font-medium ${posicion.estado === "ganada" ? "text-green-600" : "text-red-600"
+                                  }`}
                               >
                                 {posicion.estado === "ganada"
                                   ? `+${(((posicion.gananciasPotenciales - posicion.cantidad) / posicion.cantidad) * 100).toFixed(1)}%`
