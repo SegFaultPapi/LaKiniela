@@ -5,7 +5,7 @@ import { http } from "viem"
 // Configuración optimizada de RainbowKit y wagmi para QR codes
 export const config = getDefaultConfig({
   appName: "La Kiniela",
-  projectId: "a72914e54bf5416051c0e91728138d63", // ProjectId DE LA KINIELA
+  projectId: "a72914e54bf5416051c0e91728138d63", // ProjectId DE LA KINIELA - Preguntar a Andrés en caso de error
   chains: [arbitrumSepolia, arbitrum],
   transports: {
     [arbitrum.id]: http("https://arb1.arbitrum.io/rpc"),
