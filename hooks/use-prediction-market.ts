@@ -119,7 +119,7 @@ export function usePredictionMarket() {
 
     // Participar en el market local
     const result = MarketStorage.participateInMarket(address, marketId, opcionId, amount)
-    
+
     if (!result.success) {
       throw new Error(result.error || "Error al participar en el market")
     }
@@ -132,21 +132,25 @@ export function usePredictionMarket() {
   }
 
   // Función para aprobar tokens MXNB (mantener para futuras integraciones)
-  const approveMXNB = async (amount: string) => {
+  const approveMXNB = async (amount: string): Promise<`0x${string}` | undefined> => {
     if (!address) throw new Error("Wallet no conectado")
 
     const amountBigInt = parseMXNB(amount)
 
     try {
-      const txHash = await writeContract({
+      await writeContract({
         address: CONTRACTS.MXNB_TOKEN,
         abi: MXNB_TOKEN_ABI,
         functionName: "approve",
         args: [CONTRACTS.PREDICTION_MARKET, amountBigInt],
       })
 
-      setLastTxHash(txHash)
-      return txHash
+      // El hash se obtiene del hook useWriteContract
+      if (hash) {
+        setLastTxHash(hash)
+        return hash
+      }
+      return undefined
     } catch (error) {
       console.error("Error al aprobar MXNB:", error)
       throw error
@@ -159,21 +163,25 @@ export function usePredictionMarket() {
   }
 
   // Función para reclamar recompensas
-  const claimReward = async (betId: string) => {
+  const claimReward = async (betId: string): Promise<`0x${string}` | undefined> => {
     if (!address) throw new Error("Wallet no conectado")
 
     const betIdBigInt = BigInt(betId)
 
     try {
-      const txHash = await writeContract({
+      await writeContract({
         address: CONTRACTS.PREDICTION_MARKET,
         abi: PREDICTION_MARKET_ABI,
         functionName: "claimReward",
         args: [betIdBigInt],
       })
 
-      setLastTxHash(txHash)
-      return txHash
+      // El hash se obtiene del hook useWriteContract
+      if (hash) {
+        setLastTxHash(hash)
+        return hash
+      }
+      return undefined
     } catch (error) {
       console.error("Error al reclamar recompensa:", error)
       throw error
@@ -260,7 +268,7 @@ export function usePredictionMarket() {
   const formattedUserBets: ApuestaUsuario[] = localParticipations.map(participation => {
     const market = localMarkets.find(m => m.id === participation.marketId)
     const gananciasPotenciales = MarketStorage.calcularGananciasPotenciales(address || "", participation.marketId)
-    
+
     return {
       id: `${participation.marketId}-${participation.opcionId}`,
       eventoId: participation.marketId,

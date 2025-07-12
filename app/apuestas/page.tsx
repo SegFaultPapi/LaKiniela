@@ -320,11 +320,10 @@ export default function ApuestasPage() {
                             {evento.opciones.map((opcion) => (
                               <div
                                 key={opcion.id}
-                                className={`p-3 border rounded-lg cursor-pointer transition-colors ${
-                                  opcionSeleccionada === opcion.id
-                                    ? "border-blue-500 bg-blue-50"
-                                    : "border-gray-200 hover:border-gray-300"
-                                }`}
+                                className={`p-3 border rounded-lg cursor-pointer transition-colors ${opcionSeleccionada === opcion.id
+                                  ? "border-blue-500 bg-blue-50"
+                                  : "border-gray-200 hover:border-gray-300"
+                                  }`}
                                 onClick={() => setOpcionSeleccionada(opcion.id)}
                               >
                                 <div className="flex justify-between items-center">

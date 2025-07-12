@@ -37,7 +37,7 @@ import {
   HelpCircle,
   DollarSign,
 } from "lucide-react"
-import { useWallet } from "@/components/wallet-provider"
+import { usePredictionMarket } from "@/hooks/use-prediction-market"
 import { ConnectButton } from "@rainbow-me/rainbowkit"
 import Image from "next/image"
 import type { EventoApuesta } from "@/lib/types"
@@ -57,7 +57,7 @@ export default function InicioPage() {
     approveMXNB,
     refetchEvents,
     createMarket,
-  } = useWallet()
+  } = usePredictionMarket()
 
   const [eventoSeleccionado, setEventoSeleccionado] = useState<EventoApuesta | null>(null)
   const [opcionSeleccionada, setOpcionSeleccionada] = useState<string>("")
@@ -394,8 +394,8 @@ export default function InicioPage() {
               <HelpCircle className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-xl font-semibold text-foreground mb-2">No hay markets disponibles</h3>
               <p className="text-muted-foreground mb-6">
-                {categoriaActiva === "todos" 
-                  ? "Aún no se han creado markets. ¡Sé el primero!" 
+                {categoriaActiva === "todos"
+                  ? "Aún no se han creado markets. ¡Sé el primero!"
                   : `No hay markets en la categoría "${categorias.find(c => c.id === categoriaActiva)?.nombre}"`
                 }
               </p>
