@@ -36,12 +36,14 @@ import {
   Plus,
   HelpCircle,
   DollarSign,
+  Lock,
 } from "lucide-react"
 import { usePredictionMarket } from "@/hooks/use-prediction-market"
 import { ConnectButton } from "@rainbow-me/rainbowkit"
 import Image from "next/image"
 import type { EventoApuesta } from "@/lib/types"
 import { DebugInfo } from "@/components/debug-info"
+import { AuthModal } from "@/components/auth-modal"
 
 export default function InicioPage() {
   const {
@@ -64,6 +66,7 @@ export default function InicioPage() {
   const [cantidadPosicion, setCantidadPosicion] = useState<string>("")
   const [dialogOpen, setDialogOpen] = useState(false)
   const [createMarketOpen, setCreateMarketOpen] = useState(false)
+  const [authModalOpen, setAuthModalOpen] = useState(false)
   const [needsApproval, setNeedsApproval] = useState(false)
   const [txError, setTxError] = useState<string>("")
 
@@ -222,7 +225,14 @@ export default function InicioPage() {
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
                 {!isConnected ? (
-                  <ConnectButton />
+                  <>
+                    <Button size="lg" onClick={() => setAuthModalOpen(true)} className="bg-primary hover:bg-primary/90">
+                      Iniciar Sesión
+                    </Button>
+                    <Button variant="outline" size="lg" onClick={() => setAuthModalOpen(true)}>
+                      Registrarse
+                    </Button>
+                  </>
                 ) : (
                   <Button size="lg" onClick={() => setCreateMarketOpen(true)} className="bg-primary hover:bg-primary/90">
                     <Plus className="w-5 h-5 mr-2" />
@@ -242,7 +252,13 @@ export default function InicioPage() {
                     {eventosDisponibles.length} activos
                   </Badge>
                 </div>
-                {eventosDisponibles.length > 0 ? (
+                {!isConnected ? (
+                  <div className="text-center py-8">
+                    <Lock className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-muted-foreground font-medium">Inicia sesión primero para ver los markets activos</p>
+                    <p className="text-sm text-muted-foreground mt-2">Conecta tu wallet o regístrate para participar</p>
+                  </div>
+                ) : eventosDisponibles.length > 0 ? (
                   <div className="space-y-4">
                     {eventosDisponibles.slice(0, 3).map((evento) => (
                       <div key={evento.id} className="p-4 border border-primary/10 rounded-lg bg-primary/5">
@@ -316,7 +332,23 @@ export default function InicioPage() {
           </div>
 
           {/* Lista de eventos */}
-          {eventosFiltrados.length > 0 ? (
+          {!isConnected ? (
+            <div className="text-center py-16">
+              <Lock className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-foreground mb-2">Inicia sesión primero para ver los markets activos</h3>
+              <p className="text-muted-foreground mb-6">
+                Conecta tu wallet o regístrate para participar en los mercados de predicción
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <Button onClick={() => setAuthModalOpen(true)} className="bg-primary hover:bg-primary/90">
+                  Iniciar Sesión
+                </Button>
+                <Button variant="outline" onClick={() => setAuthModalOpen(true)}>
+                  Registrarse
+                </Button>
+              </div>
+            </div>
+          ) : eventosFiltrados.length > 0 ? (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {eventosFiltrados.map((evento) => (
                 <Card key={evento.id} className="border border-primary/20 bg-white shadow-lg hover:shadow-xl transition-shadow">
@@ -637,6 +669,9 @@ export default function InicioPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Modal de autenticación */}
+      <AuthModal isOpen={authModalOpen} onClose={() => setAuthModalOpen(false)} />
     </div>
   )
 }
