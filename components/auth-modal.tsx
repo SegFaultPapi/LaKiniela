@@ -65,7 +65,13 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                   <p className="text-sm text-muted-foreground mb-4">
                     Conecta tu wallet para acceder a La Kiniela
                   </p>
-                  <ConnectButton />
+                  <div
+                    onClick={() => {
+                      onClose();
+                    }}
+                  >
+                    <ConnectButton />
+                  </div>
                 </div>
               </div>
             </TabsContent>

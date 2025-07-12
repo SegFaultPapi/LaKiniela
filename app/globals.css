@@ -81,6 +81,8 @@ body {
     box-shadow: var(--rk-shadows-connectButton) !important;
     min-height: 40px !important;
     white-space: nowrap !important;
+    margin: 0 auto !important;
+    width: fit-content !important;
   }
 
   [data-rk] button[data-testid="rk-connect-button"]:hover {
@@ -242,6 +244,8 @@ body {
     align-items: center !important;
     justify-content: center !important;
     background: var(--rk-colors-modalBackdrop) !important;
+    padding: 20px !important;
+    overflow: auto !important;
   }
 
   /* Contenedor del modal */
@@ -250,11 +254,14 @@ body {
     background: var(--rk-colors-modalBackground) !important;
     border-radius: var(--rk-radii-modal) !important;
     box-shadow: var(--rk-shadows-dialog) !important;
-    max-width: 408px !important;
+    max-width: 90vw !important;
     width: 100% !important;
-    margin: 16px !important;
-    max-height: calc(100vh - 32px) !important;
-    overflow: hidden !important;
+    margin: 0 !important;
+    max-height: 95vh !important;
+    min-height: 500px !important;
+    overflow: visible !important;
+    display: flex !important;
+    flex-direction: column !important;
   }
 
   /* Header del modal */
@@ -270,6 +277,11 @@ body {
   /* Contenido del modal */
   [data-rk] div[role="dialog"]>div>div {
     padding: 24px !important;
+    flex: 1 !important;
+    overflow-y: auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 16px !important;
   }
 
   /* Lista de wallets en el modal */
@@ -325,9 +337,15 @@ body {
 
   /* Responsive */
   @media (max-width: 768px) {
+    [data-rk] div[role="dialog"] {
+      padding: 10px !important;
+    }
+    
     [data-rk] div[role="dialog"]>div {
-      margin: 8px !important;
+      margin: 0 !important;
       border-radius: var(--rk-radii-modalMobile) !important;
+      max-width: 95vw !important;
+      max-height: 95vh !important;
     }
 
     [data-rk] div[role="dialog"] h1 {
@@ -372,6 +390,69 @@ body {
       width: 16px !important;
       height: 16px !important;
     }
+
+    /* Contenido del modal en móvil */
+    [data-rk] div[role="dialog"]>div>div {
+      padding: 16px !important;
+      gap: 12px !important;
+    }
+
+    [data-rk] div[role="dialog"] h1 {
+      font-size: 16px !important;
+      padding: 16px 16px 0 16px !important;
+    }
+  }
+
+  /* CORRECCIÓN ESPECÍFICA: Centrar botón de conexión en modal de autenticación */
+  [data-rk] div[role="dialog"] [data-testid="rk-connect-button"] {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin: 0 auto !important;
+    width: fit-content !important;
+    min-width: 200px !important;
+  }
+
+  /* CORRECCIÓN: Contenedor del botón de conexión en modal */
+  [data-rk] div[role="dialog"] > div > div > div {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+  }
+
+  /* CORRECCIÓN: Ocultar elementos de foco vacíos (rectángulos blancos) */
+  [data-rk] div[role="dialog"] div[tabindex="0"] {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    width: 0 !important;
+    height: 0 !important;
+    position: absolute !important;
+    pointer-events: none !important;
+  }
+
+  /* CORRECCIÓN: Ocultar elementos de foco específicos */
+  [data-rk] div[role="dialog"] div[tabindex="0"]:empty,
+  [data-rk] div[role="dialog"] div[tabindex="0"]:not(:has(*)) {
+    display: none !important;
+  }
+
+  /* CORRECCIÓN: Ocultar todos los elementos de foco vacíos en el modal */
+  [data-rk] div[role="dialog"] *[tabindex="0"] {
+    min-width: 0 !important;
+    min-height: 0 !important;
+  }
+
+  [data-rk] div[role="dialog"] *[tabindex="0"]:empty {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    background: transparent !important;
   }
 }
 
