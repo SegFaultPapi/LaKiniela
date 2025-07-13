@@ -43,9 +43,12 @@ import { ConnectButton } from "@rainbow-me/rainbowkit"
 import Image from "next/image"
 import type { EventoApuesta } from "@/lib/types"
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 import { DebugInfo } from "@/components/debug-info"
 import { AuthModal } from "@/components/auth-modal"
 =======
+=======
+>>>>>>> Stashed changes
 import Link from "next/link"
 >>>>>>> Stashed changes
 
@@ -684,6 +687,9 @@ export default function InicioPage() {
         onClose={closeUsernameDialog}
         onUsernameSet={setUsername}
       />
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
     </div>
   )
