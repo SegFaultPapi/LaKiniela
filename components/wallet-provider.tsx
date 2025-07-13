@@ -77,6 +77,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
             }),
           }}
           locale="es"
+          modalSize="compact"
         >
           <WalletContextProvider>{children}</WalletContextProvider>
         </RainbowKitProvider>

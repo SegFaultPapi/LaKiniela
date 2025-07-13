@@ -5,7 +5,7 @@ import { http } from "viem"
 // Configuración de RainbowKit y wagmi
 export const config = getDefaultConfig({
   appName: "La Kiniela",
-  projectId: process.env.NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID || "your-project-id",
+  projectId: process.env.NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID || "a72914e54bf5416051c0e91728138d63",
   chains: [arbitrum, arbitrumSepolia],
   transports: {
     [arbitrum.id]: http(),
