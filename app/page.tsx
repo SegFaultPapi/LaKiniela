@@ -42,8 +42,12 @@ import { usePredictionMarket } from "@/hooks/use-prediction-market"
 import { ConnectButton } from "@rainbow-me/rainbowkit"
 import Image from "next/image"
 import type { EventoApuesta } from "@/lib/types"
+<<<<<<< Updated upstream
 import { DebugInfo } from "@/components/debug-info"
 import { AuthModal } from "@/components/auth-modal"
+=======
+import Link from "next/link"
+>>>>>>> Stashed changes
 
 export default function InicioPage() {
   const {
@@ -670,8 +674,17 @@ export default function InicioPage() {
         </DialogContent>
       </Dialog>
 
+<<<<<<< Updated upstream
       {/* Modal de autenticación */}
       <AuthModal isOpen={authModalOpen} onClose={() => setAuthModalOpen(false)} />
+=======
+      {/* Diálogo de configuración de username - Solo aquí para evitar duplicaciones */}
+      <UsernameSetupDialog
+        isOpen={showUsernameDialog}
+        onClose={closeUsernameDialog}
+        onUsernameSet={setUsername}
+      />
+>>>>>>> Stashed changes
     </div>
   )
 }

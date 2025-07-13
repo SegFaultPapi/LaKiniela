@@ -19,6 +19,7 @@ import {
   ExternalLink,
   Copy,
   RefreshCw,
+  MessageCircle,
 } from "lucide-react"
 import { usePredictionMarket } from "@/hooks/use-prediction-market"
 import { ConnectButton } from "@rainbow-me/rainbowkit"
@@ -147,7 +148,9 @@ export default function PerfilPage() {
                 <p className="text-card-foreground/70 mb-6">
                   Para ver tu perfil y historial de posiciones, necesitas conectar tu wallet.
                 </p>
-                <ConnectButton />
+                <div className="flex justify-center">
+                  <ConnectButton />
+                </div>
               </CardContent>
             </Card>
           </div>
@@ -401,14 +404,14 @@ export default function PerfilPage() {
             <CardContent className="text-center py-6">
               <h3 className="text-lg font-semibold text-primary mb-2">¿Necesitas ayuda?</h3>
               <p className="text-muted-foreground text-sm mb-4">
-                Si tienes preguntas sobre tus posiciones o necesitas soporte, no dudes en contactarnos.
+                Si tienes preguntas sobre tus posiciones o necesitas soporte, nuestro asistente AI está aquí para ayudarte.
               </p>
               <Button
                 variant="outline"
                 className="border-primary text-primary hover:bg-primary hover:text-white bg-transparent"
               >
-                <ExternalLink className="w-4 h-4 mr-2" />
-                Centro de Ayuda
+                <MessageCircle className="w-4 h-4 mr-2" />
+                Chat con Asistente AI
               </Button>
             </CardContent>
           </Card>
