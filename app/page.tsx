@@ -42,15 +42,7 @@ import { usePredictionMarket } from "@/hooks/use-prediction-market"
 import { ConnectButton } from "@rainbow-me/rainbowkit"
 import Image from "next/image"
 import type { EventoApuesta } from "@/lib/types"
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-import { DebugInfo } from "@/components/debug-info"
-import { AuthModal } from "@/components/auth-modal"
-=======
-=======
->>>>>>> Stashed changes
 import Link from "next/link"
->>>>>>> Stashed changes
 
 export default function InicioPage() {
   const {
@@ -73,7 +65,7 @@ export default function InicioPage() {
   const [cantidadPosicion, setCantidadPosicion] = useState<string>("")
   const [dialogOpen, setDialogOpen] = useState(false)
   const [createMarketOpen, setCreateMarketOpen] = useState(false)
-  const [authModalOpen, setAuthModalOpen] = useState(false)
+
   const [needsApproval, setNeedsApproval] = useState(false)
   const [txError, setTxError] = useState<string>("")
 
@@ -233,11 +225,9 @@ export default function InicioPage() {
               <div className="flex flex-col sm:flex-row gap-4">
                 {!isConnected ? (
                   <>
-                    <Button size="lg" onClick={() => setAuthModalOpen(true)} className="bg-primary hover:bg-primary/90">
-                      Iniciar Sesión
-                    </Button>
-                    <Button variant="outline" size="lg" onClick={() => setAuthModalOpen(true)}>
-                      Registrarse
+                    <ConnectButton />
+                    <Button variant="outline" size="lg" asChild>
+                      <a href="#como-funciona">Cómo Funciona</a>
                     </Button>
                   </>
                 ) : (
@@ -295,12 +285,7 @@ export default function InicioPage() {
         </div>
       </section>
 
-      {/* Debug Info - Temporal */}
-      <section className="py-8">
-        <div className="container mx-auto px-4">
-          <DebugInfo />
-        </div>
-      </section>
+
 
       {/* Markets Section */}
       <section className="py-16">
@@ -347,12 +332,7 @@ export default function InicioPage() {
                 Conecta tu wallet o regístrate para participar en los mercados de predicción
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Button onClick={() => setAuthModalOpen(true)} className="bg-primary hover:bg-primary/90">
-                  Iniciar Sesión
-                </Button>
-                <Button variant="outline" onClick={() => setAuthModalOpen(true)}>
-                  Registrarse
-                </Button>
+                <ConnectButton />
               </div>
             </div>
           ) : eventosFiltrados.length > 0 ? (
@@ -676,21 +656,6 @@ export default function InicioPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-<<<<<<< Updated upstream
-      {/* Modal de autenticación */}
-      <AuthModal isOpen={authModalOpen} onClose={() => setAuthModalOpen(false)} />
-=======
-      {/* Diálogo de configuración de username - Solo aquí para evitar duplicaciones */}
-      <UsernameSetupDialog
-        isOpen={showUsernameDialog}
-        onClose={closeUsernameDialog}
-        onUsernameSet={setUsername}
-      />
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
     </div>
   )
 }
