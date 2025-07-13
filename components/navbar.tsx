@@ -2,20 +2,57 @@
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { SimpleWalletConnect } from "@/components/simple-wallet-connect"
-import { Menu, X } from "lucide-react"
+import { RegisterMenu } from "@/components/register-menu"
+import { Menu, X, User, LogOut } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { useUser } from "@/hooks/useUser"
+import { useDisconnect } from "wagmi"
+import { usePortalWallet } from "@/hooks/usePortalWallet"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu"
 
 export function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const pathname = usePathname()
+  const { disconnect } = useDisconnect()
+  const { disconnect: disconnectPortal } = usePortalWallet()
+  
+  const {
+    user,
+    isConnected,
+    needsUsernameSetup,
+    logout,
+    getUserDisplay,
+    isUserSetup,
+    walletAddress,
+    connectionType
+  } = useUser()
 
   const navItems = [
     { name: "Inicio", href: "/", active: pathname === "/" },
+    { name: "Portal Wallet", href: "/portal", active: pathname === "/portal" },
     { name: "Perfil", href: "/perfil", active: pathname === "/perfil" },
   ]
+
+  const handleLogout = () => {
+    // Desconectar la wallet
+    if (connectionType === 'Portal Wallet') {
+      disconnectPortal()
+    } else {
+      disconnect()
+    }
+    
+    // Cerrar sesión del usuario
+    logout()
+    setIsMenuOpen(false)
+  }
 
   return (
     <nav className="bg-background border-b border-primary/20 sticky top-0 z-50 backdrop-blur-sm">
@@ -49,9 +86,53 @@ export function Navbar() {
                 </Link>
               ))}
             </div>
-
-            {/* Wallet Connection */}
-            <SimpleWalletConnect />
+            
+            {/* Estado del usuario */}
+            {!isConnected || !isUserSetup() ? (
+              <RegisterMenu />
+            ) : (
+              <div className="flex items-center space-x-3">
+                {/* Dropdown del usuario */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="flex items-center space-x-2 px-3 py-2 bg-primary/10 border-primary/20 hover:bg-primary/15"
+                    >
+                      <User className="w-4 h-4 text-primary" />
+                      <span className="font-medium text-foreground">
+                        {getUserDisplay()}
+                      </span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuItem disabled>
+                      <div className="flex flex-col space-y-1">
+                        <span className="font-medium">{getUserDisplay()}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {connectionType}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
+                        </span>
+                      </div>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Link href="/perfil">
+                        <User className="w-4 h-4 mr-2" />
+                        Mi Perfil
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleLogout} className="text-red-600 hover:text-red-700">
+                      <LogOut className="w-4 h-4 mr-2" />
+                      Desconectar y Cerrar Sesión
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            )}
           </div>
 
           {/* Mobile menu button */}
@@ -62,33 +143,58 @@ export function Navbar() {
               onClick={() => setIsMenuOpen(!isMenuOpen)}
               className="text-foreground hover:bg-primary/10"
             >
-              {isMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </Button>
           </div>
         </div>
 
         {/* Mobile Navigation */}
         {isMenuOpen && (
-          <div className="md:hidden py-4 border-t border-primary/20">
-            <div className="flex flex-col space-y-3">
+          <div className="md:hidden border-t border-primary/20 pb-4">
+            <div className="flex flex-col space-y-2 pt-4">
               {navItems.map((item) => (
-                <Link key={item.name} href={item.href} onClick={() => setIsMenuOpen(false)}>
+                <Link key={item.name} href={item.href}>
                   <Button
                     variant={item.active ? "default" : "ghost"}
                     className={
                       item.active
-                        ? "w-full justify-start bg-primary text-white hover:bg-primary/90 border border-primary"
-                        : "w-full justify-start text-foreground hover:bg-primary/10 border border-primary/20 bg-white"
+                        ? "w-full justify-start bg-primary text-white hover:bg-primary/90"
+                        : "w-full justify-start text-foreground hover:bg-primary/10"
                     }
+                    onClick={() => setIsMenuOpen(false)}
                   >
                     {item.name}
                   </Button>
                 </Link>
               ))}
-
-              {/* Mobile Wallet Connection */}
-              <div className="flex justify-center pt-2">
-                <SimpleWalletConnect />
+              
+              {/* Usuario en móvil */}
+              <div className="pt-2">
+                {!isConnected || !isUserSetup() ? (
+                  <RegisterMenu variant="outline" className="w-full" />
+                ) : (
+                  <div className="space-y-2">
+                    <div className="flex items-center space-x-3 px-3 py-2 bg-primary/10 rounded-lg border border-primary/20">
+                      <User className="w-4 h-4 text-primary" />
+                      <div className="flex-1">
+                        <div className="font-medium text-foreground">
+                          {getUserDisplay()}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {connectionType}
+                        </div>
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      onClick={handleLogout}
+                      className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
+                    >
+                      <LogOut className="w-4 h-4 mr-2" />
+                      Desconectar y Cerrar Sesión
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
