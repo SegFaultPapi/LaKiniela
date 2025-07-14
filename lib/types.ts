@@ -5,6 +5,7 @@ export interface EventoApuesta {
   pregunta: string // Nueva propiedad para la pregunta específica
   fechaFin: string
   categoria: string
+  imagen?: string // URL de la imagen del evento
   estado: "activo" | "finalizado" | "cancelado"
   opciones: [OpcionApuesta, OpcionApuesta] // Siempre exactamente 2 opciones: Sí y No
 }

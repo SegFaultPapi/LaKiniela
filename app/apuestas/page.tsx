@@ -32,6 +32,25 @@ import { useWallet } from "@/components/wallet-provider"
 import { ConnectButton } from "@rainbow-me/rainbowkit"
 import type { EventoApuesta } from "@/lib/types"
 
+// Tipo específico para opciones de apuestas con múltiples opciones
+interface OpcionApuestaMultiple {
+  id: string
+  nombre: string
+  cuota: number
+  probabilidad: number
+}
+
+// Tipo específico para eventos con múltiples opciones
+interface EventoApuestaMultiple {
+  id: string
+  nombre: string
+  descripcion: string
+  categoria: string
+  estado: "activo" | "finalizado" | "cancelado"
+  fechaFin: string
+  opciones: OpcionApuestaMultiple[]
+}
+
 export default function ApuestasPage() {
   const {
     isConnected,
@@ -54,8 +73,8 @@ export default function ApuestasPage() {
   const [needsApproval, setNeedsApproval] = useState(false)
   const [txError, setTxError] = useState<string>("")
 
-  // Eventos de ejemplo (en producción vendrían del contrato)
-  const eventosEjemplo: EventoApuesta[] = [
+  // Datos de ejemplo para mostrar la interfaz
+  const eventosEjemplo: EventoApuestaMultiple[] = [
     {
       id: "1",
       nombre: "Copa América 2024 - Final",
@@ -276,7 +295,7 @@ export default function ApuestasPage() {
 
                 <CardContent>
                   <div className="space-y-2">
-                    {evento.opciones.slice(0, 3).map((opcion) => (
+                    {evento.opciones.slice(0, 3).map((opcion: OpcionApuestaMultiple) => (
                       <div key={opcion.id} className="flex justify-between items-center p-2 bg-gray-50 rounded-lg">
                         <span className="font-medium text-sm">{opcion.nombre}</span>
                         <div className="flex items-center space-x-2">
@@ -317,7 +336,7 @@ export default function ApuestasPage() {
                         <div>
                           <Label className="text-sm font-medium">Selecciona tu predicción:</Label>
                           <div className="space-y-2 mt-2">
-                            {evento.opciones.map((opcion) => (
+                            {evento.opciones.map((opcion: OpcionApuestaMultiple) => (
                               <div
                                 key={opcion.id}
                                 className={`p-3 border rounded-lg cursor-pointer transition-colors ${opcionSeleccionada === opcion.id

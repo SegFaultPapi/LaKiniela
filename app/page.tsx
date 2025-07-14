@@ -37,12 +37,14 @@ import {
   HelpCircle,
   DollarSign,
   Lock,
+  Image as ImageIcon,
 } from "lucide-react"
 import { usePredictionMarket } from "@/hooks/use-prediction-market"
 import { ConnectButton } from "@rainbow-me/rainbowkit"
 import Image from "next/image"
 import type { EventoApuesta } from "@/lib/types"
 import Link from "next/link"
+import { ImageUpload } from "@/components/image-upload"
 
 export default function InicioPage() {
   const {
@@ -77,7 +79,10 @@ export default function InicioPage() {
     fechaFin: "",
     categoria: "general",
     poolInicial: 1000,
+    imagen: "",
   })
+  const [imagenFile, setImagenFile] = useState<File | null>(null)
+  const [isUploading, setIsUploading] = useState(false)
 
   // Usar eventos del contrato (ahora vacíos hasta que se creen)
   const eventosDisponibles = events
@@ -176,8 +181,30 @@ export default function InicioPage() {
     }
 
     setTxError("")
+    setIsUploading(true)
 
     try {
+      let imageUrl = undefined
+
+      // Subir imagen si existe
+      if (imagenFile) {
+        const formData = new FormData()
+        formData.append('image', imagenFile)
+
+        const uploadResponse = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        })
+
+        if (!uploadResponse.ok) {
+          const errorData = await uploadResponse.json()
+          throw new Error(errorData.error || 'Error al subir la imagen')
+        }
+
+        const uploadResult = await uploadResponse.json()
+        imageUrl = uploadResult.imageUrl
+      }
+
       await createMarket({
         nombre: nuevoMarket.nombre,
         descripcion: nuevoMarket.descripcion,
@@ -185,6 +212,7 @@ export default function InicioPage() {
         categoria: nuevoMarket.categoria,
         fechaFin: nuevoMarket.fechaFin,
         poolInicial: nuevoMarket.poolInicial,
+        imagen: imageUrl,
       })
 
       // Limpiar formulario
@@ -195,13 +223,17 @@ export default function InicioPage() {
         fechaFin: "",
         categoria: "general",
         poolInicial: 1000,
+        imagen: "",
       })
+      setImagenFile(null)
 
       setCreateMarketOpen(false)
       refetchEvents()
     } catch (error: any) {
       console.error("Error al crear market:", error)
       setTxError(error.message || "Error al crear el market")
+    } finally {
+      setIsUploading(false)
     }
   }
 
@@ -339,6 +371,19 @@ export default function InicioPage() {
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {eventosFiltrados.map((evento) => (
                 <Card key={evento.id} className="border border-primary/20 bg-white shadow-lg hover:shadow-xl transition-shadow">
+                  {evento.imagen && (
+                    <div className="relative h-48 overflow-hidden rounded-t-lg">
+                      <Image
+                        src={evento.imagen}
+                        alt={evento.nombre}
+                        fill
+                        className="object-cover"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none'
+                        }}
+                      />
+                    </div>
+                  )}
                   <CardHeader>
                     <div className="flex items-start justify-between">
                       <div>
@@ -546,14 +591,14 @@ export default function InicioPage() {
 
       {/* Dialog para crear market */}
       <Dialog open={createMarketOpen} onOpenChange={setCreateMarketOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
+        <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col">
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle>Crear Nuevo Market</DialogTitle>
             <DialogDescription>
               Crea un nuevo mercado de predicción para la comunidad
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="space-y-4 flex-1 overflow-y-auto pr-2">
             <div>
               <Label htmlFor="nombre" className="text-sm font-medium text-foreground">
                 Nombre del Market *
@@ -576,6 +621,7 @@ export default function InicioPage() {
                 value={nuevoMarket.descripcion}
                 onChange={(e) => setNuevoMarket({ ...nuevoMarket, descripcion: e.target.value })}
                 className="mt-1"
+                rows={3}
               />
             </div>
             <div>
@@ -606,6 +652,10 @@ export default function InicioPage() {
                 <option value="politica">Política</option>
               </select>
             </div>
+            <ImageUpload
+              onImageChange={setImagenFile}
+              className="space-y-2"
+            />
             <div>
               <Label htmlFor="fechaFin" className="text-sm font-medium text-foreground">
                 Fecha de Finalización *
@@ -641,17 +691,22 @@ export default function InicioPage() {
               </Alert>
             )}
           </div>
-          <DialogFooter>
+          <DialogFooter className="flex-shrink-0 pt-4 border-t">
             <Button variant="outline" onClick={() => setCreateMarketOpen(false)}>
               Cancelar
             </Button>
             <Button
               onClick={manejarCrearMarket}
-              disabled={!nuevoMarket.nombre || !nuevoMarket.pregunta || !nuevoMarket.fechaFin}
+              disabled={!nuevoMarket.nombre || !nuevoMarket.pregunta || !nuevoMarket.fechaFin || isUploading}
               className="bg-primary hover:bg-primary/90"
             >
-              <Plus className="w-4 h-4 mr-2" />
-              Crear Market
+              {(isUploading) && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              {isUploading ? "Subiendo imagen..." : (
+                <>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Crear Market
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

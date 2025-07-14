@@ -1,0 +1,6 @@
+// Ejecuta esto en la consola del navegador para eliminar todos los markets:
+
+localStorage.removeItem('la-kiniela-markets');
+localStorage.removeItem('la-kiniela-participations');
+console.log('✅ Markets eliminados');
+location.reload(); 

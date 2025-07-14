@@ -7,6 +7,7 @@ export interface MarketData {
   descripcion: string
   pregunta: string
   categoria: string
+  imagen?: string // URL de la imagen del market
   estado: "activo" | "finalizado" | "cancelado"
   fechaCreacion: string
   fechaFin: string
@@ -102,6 +103,19 @@ export class MarketStorage {
   static getMarket(id: string): MarketData | null {
     const markets = this.getMarkets()
     return markets.find(market => market.id === id) || null
+  }
+
+  // Eliminar todos los markets
+  static clearAllMarkets(): void {
+    if (typeof window === "undefined") return
+    
+    try {
+      localStorage.removeItem(this.MARKETS_KEY)
+      localStorage.removeItem(this.PARTICIPATIONS_KEY)
+      console.log("Todos los markets han sido eliminados")
+    } catch (error) {
+      console.error("Error al eliminar markets:", error)
+    }
   }
 
   // Crear nuevo market

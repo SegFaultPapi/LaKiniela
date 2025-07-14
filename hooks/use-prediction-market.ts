@@ -85,6 +85,7 @@ export function usePredictionMarket() {
     categoria: string
     fechaFin: string
     poolInicial: number
+    imagen?: string
   }) => {
     if (!address) throw new Error("Wallet no conectado")
 
@@ -259,6 +260,7 @@ export function usePredictionMarket() {
     descripcion: market.descripcion,
     pregunta: market.pregunta,
     categoria: market.categoria,
+    imagen: market.imagen,
     estado: market.estado,
     fechaFin: market.fechaFin,
     opciones: market.opciones
