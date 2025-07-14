@@ -9,6 +9,11 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  api: {
+    bodyParser: {
+      sizeLimit: '10mb',
+    },
+  },
   webpack: (config, { isServer }) => {
     if (!isServer) {
       // Suprimir warnings específicos de React relacionados con errorCorrection

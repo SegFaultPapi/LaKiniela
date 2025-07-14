@@ -1,7 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { writeFile, mkdir } from 'fs/promises'
-import { join } from 'path'
-import { existsSync } from 'fs'
 
 export async function POST(request: NextRequest) {
   try {
@@ -31,36 +28,34 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Crear directorio si no existe
-    const uploadDir = join(process.cwd(), 'public', 'uploads')
-    if (!existsSync(uploadDir)) {
-      await mkdir(uploadDir, { recursive: true })
-    }
-
-    // Generar nombre único para el archivo
-    const timestamp = Date.now()
-    const extension = file.name.split('.').pop()
-    const fileName = `market-${timestamp}.${extension}`
-    const filePath = join(uploadDir, fileName)
-
-    // Convertir File a Buffer y guardar
+    // Convertir imagen a base64 (compatible con Vercel)
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
-    await writeFile(filePath, buffer)
+    const base64 = buffer.toString('base64')
+    
+    // Crear data URL
+    const dataURL = `data:${file.type};base64,${base64}`
 
-    // Retornar la URL de la imagen
-    const imageUrl = `/uploads/${fileName}`
+    console.log('✅ Imagen convertida a base64:', {
+      fileName: file.name,
+      fileType: file.type,
+      fileSize: file.size,
+      base64Length: base64.length,
+      dataURLLength: dataURL.length
+    })
 
     return NextResponse.json({ 
       success: true, 
-      imageUrl,
-      message: 'Imagen subida exitosamente' 
+      imageUrl: dataURL,
+      message: 'Imagen procesada exitosamente',
+      fileName: file.name,
+      fileSize: file.size
     })
 
   } catch (error) {
-    console.error('Error al subir imagen:', error)
+    console.error('❌ Error al procesar imagen:', error)
     return NextResponse.json(
-      { error: 'Error interno del servidor' },
+      { error: `Error interno del servidor: ${error instanceof Error ? error.message : 'Error desconocido'}` },
       { status: 500 }
     )
   }

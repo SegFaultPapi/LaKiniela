@@ -552,22 +552,53 @@ export default function InicioPage() {
 
       // Subir imagen si existe
       if (imagenFile) {
-        setTxError("📸 Subiendo imagen...")
+        console.log("📸 Iniciando upload de imagen:", {
+          fileName: imagenFile.name,
+          fileSize: imagenFile.size,
+          fileType: imagenFile.type
+        })
+        
+        setTxError("📸 Procesando imagen...")
+        
         const formData = new FormData()
         formData.append('image', imagenFile)
 
+        console.log("🌐 Enviando request a /api/upload...")
+        
         const uploadResponse = await fetch('/api/upload', {
           method: 'POST',
           body: formData,
         })
 
+        console.log("📡 Response recibida:", {
+          status: uploadResponse.status,
+          statusText: uploadResponse.statusText,
+          ok: uploadResponse.ok
+        })
+
         if (!uploadResponse.ok) {
-          const errorData = await uploadResponse.json()
-          throw new Error(errorData.error || 'Error al subir la imagen')
+          let errorData
+          try {
+            errorData = await uploadResponse.json()
+          } catch (parseError) {
+            console.error("❌ Error parseando response JSON:", parseError)
+            throw new Error(`Error de servidor (${uploadResponse.status}): No se pudo procesar la respuesta`)
+          }
+          
+          console.error("❌ Error del servidor:", errorData)
+          throw new Error(`Error al procesar imagen: ${errorData.error || 'Error desconocido del servidor'}`)
         }
 
         const uploadResult = await uploadResponse.json()
+        console.log("✅ Upload exitoso:", uploadResult)
+        
         imageUrl = uploadResult.imageUrl
+        
+        if (!imageUrl) {
+          throw new Error("El servidor no devolvió una URL de imagen válida")
+        }
+        
+        console.log("💾 Imagen procesada correctamente como base64")
       }
 
       // Obtener el ID que tendrá el nuevo market (marketCount actual)
@@ -587,7 +618,7 @@ export default function InicioPage() {
 
       // Guardar la imagen asociada al market ID si existe
       if (imageUrl && typeof newMarketId === 'number') {
-        console.log("💾 Guardando imagen para market ID:", newMarketId, "URL:", imageUrl)
+        console.log("💾 Guardando imagen para market ID:", newMarketId, "URL tipo:", typeof imageUrl)
         MarketImageStorage.saveImage(newMarketId, imageUrl, CONTRACTS.PREDICTION_MARKET)
       }
 
@@ -611,10 +642,22 @@ export default function InicioPage() {
       setImagenFile(null)
 
       setCreateMarketOpen(false)
+      
     } catch (error: any) {
-      console.error("Error al crear market:", error)
+      console.error("❌ Error al crear market:", error)
       setCurrentTxType(null) // Resetear en caso de error
-      setTxError("❌ " + (error.message || "Error al crear el market"))
+      
+      // Manejo de errores más específico
+      if (error.message.includes("fetch")) {
+        setTxError("❌ Error de conectividad. Verifica tu conexión a internet y vuelve a intentar.")
+      } else if (error.message.includes("imagen") || error.message.includes("upload")) {
+        setTxError("❌ Error procesando imagen: " + error.message)
+      } else if (error.message.includes("servidor")) {
+        setTxError("❌ Error del servidor: " + error.message)
+      } else {
+        setTxError("❌ " + (error.message || "Error desconocido al crear el market"))
+      }
+      
     } finally {
       setIsUploading(false)
     }
@@ -1225,6 +1268,105 @@ export default function InicioPage() {
               onImageChange={setImagenFile}
               className="space-y-2"
             />
+            
+            {/* Botón de prueba para la API de upload */}
+            <div className="border border-dashed border-gray-300 rounded-lg p-4 bg-gray-50">
+              <div className="text-sm font-medium text-gray-700 mb-2">🧪 Pruebas de API</div>
+              <div className="flex gap-2">
+                <Button 
+                  type="button"
+                  variant="outline" 
+                  size="sm"
+                  onClick={async () => {
+                    try {
+                      const response = await fetch('/api/test')
+                      const data = await response.json()
+                      console.log('✅ API Test:', data)
+                      toast({
+                        title: "✅ API Test",
+                        description: `APIs funcionando: ${data.success ? 'Sí' : 'No'} - Ver consola para detalles`,
+                        duration: 4000,
+                      })
+                    } catch (error) {
+                      console.error('❌ Error en API test:', error)
+                      toast({
+                        title: "❌ Error API Test",
+                        description: "Error probando APIs. Ver consola para detalles.",
+                        variant: "destructive",
+                        duration: 4000,
+                      })
+                    }
+                  }}
+                >
+                  Test API
+                </Button>
+                
+                <Button 
+                  type="button"
+                  variant="outline" 
+                  size="sm"
+                  onClick={async () => {
+                    if (!imagenFile) {
+                      toast({
+                        title: "⚠️ Sin imagen",
+                        description: "Selecciona una imagen primero",
+                        variant: "destructive",
+                      })
+                      return
+                    }
+                    
+                    try {
+                      const formData = new FormData()
+                      formData.append('image', imagenFile)
+                      
+                      console.log('🧪 Probando upload de imagen...')
+                      const response = await fetch('/api/upload', {
+                        method: 'POST',
+                        body: formData,
+                      })
+                      
+                      console.log('📡 Upload response:', {
+                        status: response.status,
+                        statusText: response.statusText,
+                        ok: response.ok
+                      })
+                      
+                      if (response.ok) {
+                        const data = await response.json()
+                        console.log('✅ Upload exitoso:', data)
+                        toast({
+                          title: "✅ Upload Test Exitoso",
+                          description: `Imagen procesada correctamente como base64. Ver consola para detalles.`,
+                          duration: 5000,
+                        })
+                      } else {
+                        const errorData = await response.json()
+                        console.error('❌ Upload falló:', errorData)
+                        toast({
+                          title: "❌ Upload Test Falló",
+                          description: `Error: ${errorData.error || 'Error desconocido'}`,
+                          variant: "destructive",
+                          duration: 5000,
+                        })
+                      }
+                    } catch (error) {
+                      console.error('❌ Error en upload test:', error)
+                      toast({
+                        title: "❌ Error Upload Test",
+                        description: `Error: ${error instanceof Error ? error.message : 'Error desconocido'}`,
+                        variant: "destructive",
+                        duration: 5000,
+                      })
+                    }
+                  }}
+                >
+                  Test Upload
+                </Button>
+              </div>
+              <p className="text-xs text-gray-500 mt-2">
+                Estos botones son para debug. Test API verifica el servidor, Test Upload prueba la subida de imágenes.
+              </p>
+            </div>
             <div>
               <Label htmlFor="fechaFin" className="text-sm font-medium text-foreground">
                 Fecha de Finalización *
