@@ -17,15 +17,26 @@ import {
   type UserShares,
   type UserInfoAdvanced
 } from "@/lib/contracts-config"
-import { createPublicClient, http } from "viem"
+import { createPublicClient, http, fallback } from "viem"
 import { arbitrumSepolia } from "viem/chains"
 import type { OpcionApuesta } from "@/lib/types"
 import { MarketImageStorage } from "@/lib/market-images"
+import { MarketDescriptionStorage } from "@/lib/market-descriptions"
 
-// Cliente público para lecturas que no funcionan bien con wagmi
+// Cliente público con múltiples RPCs para mayor confiabilidad
 const publicClient = createPublicClient({
   chain: arbitrumSepolia,
-  transport: http()
+  transport: fallback([
+    http("https://arbitrum-sepolia.blockpi.network/v1/rpc/public"),
+    http("https://sepolia-rollup.arbitrum.io/rpc"),
+    http("https://arbitrum-sepolia.infura.io/v3/1234567890123456789012345678901234567890"),
+    http("https://arbitrum-sepolia-rpc.publicnode.com"),
+    http(), // Fallback por defecto
+  ], {
+    rank: false,
+    retryCount: 2,
+    retryDelay: 1000,
+  })
 })
 
 export function usePredictionMarketV2() {
@@ -104,16 +115,25 @@ export function usePredictionMarketV2() {
     },
   })
 
-  // Información del contrato de predicción
-  const { data: marketCount, refetch: refetchMarketCount } = useReadContract({
+  // Información del contrato de predicción con mejor manejo de errores
+  const { data: marketCount, refetch: refetchMarketCount, error: marketCountError } = useReadContract({
     address: CONTRACTS.PREDICTION_MARKET,
     abi: PREDICTION_MARKET_ABI,
     functionName: "marketCount",
     query: {
       enabled: isCorrectNet,
       refetchInterval: 30000,
+      retry: 3,
+      retryDelay: 2000,
     },
   })
+
+  // Log errores de marketCount
+  useEffect(() => {
+    if (marketCountError) {
+      console.error("❌ Error obteniendo marketCount:", marketCountError)
+    }
+  }, [marketCountError])
 
   const { data: bettingToken } = useReadContract({
     address: CONTRACTS.PREDICTION_MARKET,
@@ -197,11 +217,22 @@ export function usePredictionMarketV2() {
     }
   }, [address, mxnbBalance, allowance, hasInfiniteAllowance, isCorrectNet])
 
-  // Función para obtener información de un mercado
+  // Función para obtener información de un mercado con mejor manejo de errores
   const getMarketInfo = useCallback(async (marketId: number): Promise<MarketInfo | null> => {
-    if (!isCorrectNet) return null
+    if (!isCorrectNet) {
+      console.log(`⚠️ Red incorrecta para obtener market ${marketId}`)
+      return null
+    }
+    
+    // Verificar que el marketId sea válido
+    if (marketId < 0) {
+      console.error(`❌ Market ID inválido: ${marketId}`)
+      return null
+    }
     
     try {
+      console.log(`🔍 Obteniendo información del market ${marketId}...`)
+      
       const result = await publicClient.readContract({
         address: CONTRACTS.PREDICTION_MARKET,
         abi: PREDICTION_MARKET_ABI,
@@ -220,6 +251,8 @@ export function usePredictionMarketV2() {
         resolved
       ] = result
 
+      console.log(`✅ Market ${marketId} obtenido:`, { question, optionA, optionB, resolved })
+
       return {
         id: marketId,
         question,
@@ -231,8 +264,59 @@ export function usePredictionMarketV2() {
         totalOptionBShares,
         resolved
       }
-    } catch (error) {
-      console.error("Error obteniendo información del mercado:", error)
+    } catch (error: any) {
+      console.error(`❌ Error obteniendo market ${marketId}:`, error)
+      
+      // Si es un error de RPC, intentar con el siguiente
+      if (error.message?.includes("Failed to fetch") || error.message?.includes("HTTP request failed")) {
+        console.log(`🔄 Reintentando obtener market ${marketId} en 2 segundos...`)
+        await new Promise(resolve => setTimeout(resolve, 2000))
+        
+        // Un solo reintento adicional
+        try {
+          const result = await publicClient.readContract({
+            address: CONTRACTS.PREDICTION_MARKET,
+            abi: PREDICTION_MARKET_ABI,
+            functionName: "getMarketInfo",
+            args: [BigInt(marketId)]
+          }) as [string, string, string, bigint, number, bigint, bigint, boolean]
+
+          const [
+            question,
+            optionA,
+            optionB,
+            endTime,
+            outcome,
+            totalOptionAShares,
+            totalOptionBShares,
+            resolved
+          ] = result
+
+          console.log(`✅ Market ${marketId} obtenido en segundo intento`)
+
+          return {
+            id: marketId,
+            question,
+            optionA,
+            optionB,
+            endTime: Number(endTime),
+            outcome: outcome as MarketOutcome,
+            totalOptionAShares,
+            totalOptionBShares,
+            resolved
+          }
+        } catch (retryError: any) {
+          console.error(`❌ Error en segundo intento para market ${marketId}:`, retryError)
+          return null
+        }
+      }
+      
+      // Si el error indica que el market no existe, no es un error crítico
+      if (error.message?.includes("Market does not exist") || error.message?.includes("invalid market")) {
+        console.log(`ℹ️ Market ${marketId} no existe`)
+        return null
+      }
+      
       return null
     }
   }, [isCorrectNet])
@@ -264,34 +348,95 @@ export function usePredictionMarketV2() {
     }
   }, [address, isCorrectNet])
 
-  // Función para cargar todos los markets
+  // Función para verificar la conectividad del RPC y salud del contrato
+  const verifyRPCConnectivity = useCallback(async (): Promise<boolean> => {
+    try {
+      console.log("🔍 Verificando conectividad del RPC...")
+      
+      // Verificar que podemos obtener el block number
+      const blockNumber = await publicClient.getBlockNumber()
+      console.log("✅ RPC conectado, block number:", blockNumber.toString())
+      
+      // Verificar que el contrato existe y responde
+      const contractCode = await publicClient.getCode({
+        address: CONTRACTS.PREDICTION_MARKET
+      })
+      
+      if (!contractCode || contractCode === "0x") {
+        console.error("❌ El contrato no existe en esta dirección")
+        return false
+      }
+      
+      console.log("✅ Contrato verificado, código encontrado")
+      return true
+    } catch (error: any) {
+      console.error("❌ Error verificando conectividad:", error)
+      return false
+    }
+  }, [])
+
+  // Función para cargar todos los markets con mejor manejo de errores
   const loadAllMarkets = useCallback(async () => {
-    if (!isCorrectNet || !marketCount || marketCount === BigInt(0)) {
+    if (!isCorrectNet) {
+      console.log("⚠️ Red incorrecta, no se pueden cargar markets")
+      setMarketsData([])
+      return
+    }
+
+    // Verificar conectividad primero
+    const isRPCConnected = await verifyRPCConnectivity()
+    if (!isRPCConnected) {
+      console.log("❌ RPC no disponible, no se pueden cargar markets")
+      setMarketsData([])
+      return
+    }
+
+    if (!marketCount || marketCount === BigInt(0)) {
+      console.log("ℹ️ No hay markets para cargar (marketCount:", marketCount, ")")
       setMarketsData([])
       return
     }
 
     setLoadingMarkets(true)
+    console.log(`🔄 Cargando ${marketCount} markets...`)
     
     try {
-      const marketPromises = []
+      const validMarkets: MarketInfo[] = []
+      const totalCount = Number(marketCount)
       
-      // Cargar información de todos los markets (los IDs van de 0 a marketCount-1)
-      for (let i = 0; i < marketCount; i++) {
-        marketPromises.push(getMarketInfo(i))
+      // Cargar markets uno por uno para mejor manejo de errores
+      for (let i = 0; i < totalCount; i++) {
+        try {
+          console.log(`📋 Cargando market ${i}/${totalCount - 1}...`)
+          const market = await getMarketInfo(i)
+          
+          if (market) {
+            validMarkets.push(market)
+            console.log(`✅ Market ${i} cargado: "${market.question}"`)
+          } else {
+            console.log(`⚠️ Market ${i} no encontrado o error`)
+          }
+        } catch (error: any) {
+          console.error(`❌ Error específico cargando market ${i}:`, error.message || error)
+          // Continuar con el siguiente market en lugar de fallar todo
+          continue
+        }
+        
+        // Pequeña pausa para evitar sobrecargar el RPC
+        if (i < totalCount - 1) {
+          await new Promise(resolve => setTimeout(resolve, 100))
+        }
       }
-
-      const marketResults = await Promise.all(marketPromises)
-      const validMarkets = marketResults.filter((market): market is MarketInfo => market !== null)
       
+      console.log(`✅ Carga completa: ${validMarkets.length}/${totalCount} markets válidos`)
       setMarketsData(validMarkets)
-    } catch (error) {
-      console.error("Error cargando markets:", error)
+    } catch (error: any) {
+      console.error("❌ Error general cargando markets:", error)
       setMarketsData([])
     } finally {
       setLoadingMarkets(false)
     }
-  }, [isCorrectNet, marketCount, getMarketInfo])
+  }, [isCorrectNet, marketCount, getMarketInfo, verifyRPCConnectivity])
 
   // Refrescar markets cuando cambie el marketCount
   useEffect(() => {
@@ -303,6 +448,7 @@ export function usePredictionMarketV2() {
   // Efecto para limpiar imágenes antiguas al cargar el hook
   useEffect(() => {
     MarketImageStorage.cleanupOldImages()
+    MarketDescriptionStorage.cleanupOldDescriptions()
   }, [])
 
   // ========== FUNCIONES DE ESCRITURA ==========
@@ -348,6 +494,30 @@ export function usePredictionMarketV2() {
     try {
       const durationSeconds = BigInt(durationHours * 3600)
       
+      console.log("🚀 === DEBUGGING CREATE MARKET ===")
+      console.log("Question:", question)
+      console.log("Option A:", optionA)
+      console.log("Option B:", optionB)
+      console.log("Duration Hours:", durationHours, "Type:", typeof durationHours)
+      console.log("Duration Seconds:", durationSeconds.toString(), "Type:", typeof durationSeconds)
+      console.log("Contract Address:", CONTRACTS.PREDICTION_MARKET)
+      console.log("User Address:", address)
+      console.log("Is Owner:", isOwner)
+      console.log("Contract Limits:")
+      console.log("  - Min Duration:", 3600, "seconds (", 3600 / 3600, "hours )")
+      console.log("  - Max Duration:", 2592000, "seconds (", 2592000 / 3600, "hours )")
+      console.log("  - Calculated:", durationSeconds.toString(), "seconds")
+      console.log("=================================")
+      
+      // Validar antes de enviar al contrato
+      if (durationHours < 1) {
+        throw new Error("Duración debe ser al menos 1 hora")
+      }
+      
+      if (durationHours > 720) { // 30 días
+        throw new Error("Duración no puede exceder 720 horas (30 días)")
+      }
+      
       await writeContract({
         address: CONTRACTS.PREDICTION_MARKET,
         abi: PREDICTION_MARKET_ABI,
@@ -355,12 +525,13 @@ export function usePredictionMarketV2() {
         args: [question, optionA, optionB, durationSeconds],
       })
 
+      console.log("✅ CreateMarket enviado correctamente")
       return hash || null
     } catch (error) {
-      console.error("Error en createMarket:", error)
+      console.error("❌ Error en createMarket:", error)
       throw new Error(handleContractError(error))
     }
-  }, [address, writeContract, isCorrectNet, hash])
+  }, [address, writeContract, isCorrectNet, hash, isOwner])
 
   // Función auxiliar para validar parámetros antes de la transacción
   const validateBuySharesParams = useCallback(async (
@@ -577,6 +748,46 @@ export function usePredictionMarketV2() {
     try {
       setTxError("")
       
+      console.log("🗑️ === DEBUGGING CLOSE MARKET ===")
+      console.log("Market ID:", marketId, "Type:", typeof marketId)
+      console.log("Contract Address:", CONTRACTS.PREDICTION_MARKET)
+      console.log("User Address:", address)
+      console.log("Is Owner:", isOwner)
+      console.log("===================================")
+      
+      // IMPORTANTE: Validar que el market haya expirado
+      const marketInfo = await getMarketInfo(marketId)
+      if (!marketInfo) {
+        throw new Error(`Market ${marketId} no encontrado`)
+      }
+      
+      const now = Math.floor(Date.now() / 1000) // Tiempo actual en segundos
+      const marketEndTime = Number(marketInfo.endTime)
+      
+      console.log("🕒 Validación de tiempo:")
+      console.log("  - Tiempo actual:", now, "segundos")
+      console.log("  - Market endTime:", marketEndTime, "segundos")
+      console.log("  - Market expirado?", now >= marketEndTime)
+      console.log("  - Diferencia:", (marketEndTime - now), "segundos")
+      
+      if (now < marketEndTime) {
+        const horasRestantes = Math.ceil((marketEndTime - now) / 3600)
+        throw new Error(
+          `❌ LIMITACIÓN DEL CONTRATO: No se pueden cerrar markets antes de que terminen. ` +
+          `Este market termina en ${horasRestantes} horas. ` +
+          `Solo puedes cerrar markets DESPUÉS de su fecha de finalización.`
+        )
+      }
+      
+      if (marketInfo.resolved) {
+        throw new Error(`Market ${marketId} ya está resuelto`)
+      }
+      
+      // Validaciones adicionales
+      if (!Number.isInteger(marketId) || marketId < 0) {
+        throw new Error(`Market ID inválido: ${marketId}`)
+      }
+      
       await writeContract({
         address: CONTRACTS.PREDICTION_MARKET,
         abi: PREDICTION_MARKET_ABI,
@@ -584,14 +795,15 @@ export function usePredictionMarketV2() {
         args: [BigInt(marketId), MarketOutcome.CANCELLED],
       })
 
+      console.log("✅ CloseMarket enviado correctamente")
       return hash || null
     } catch (error) {
-      console.error("Error cerrando market:", error)
+      console.error("❌ Error cerrando market:", error)
       const errorMessage = handleContractError(error)
       setTxError(errorMessage)
       throw new Error(errorMessage)
     }
-  }, [address, writeContract, isCorrectNet, isOwner, hash])
+  }, [address, writeContract, isCorrectNet, isOwner, hash, getMarketInfo])
 
   // Función para resolver mercado existente mejorada
   const resolveMarket = useCallback(async (
@@ -609,6 +821,55 @@ export function usePredictionMarketV2() {
     try {
       setTxError("")
       
+      console.log("🔧 === DEBUGGING RESOLVE MARKET ===")
+      console.log("Market ID:", marketId, "Type:", typeof marketId)
+      console.log("Outcome:", outcome, "Type:", typeof outcome)
+      console.log("Market ID BigInt:", BigInt(marketId).toString())
+      console.log("Contract Address:", CONTRACTS.PREDICTION_MARKET)
+      console.log("User Address:", address)
+      console.log("Is Owner:", isOwner)
+      console.log("Valid Outcomes:", Object.values(MarketOutcome))
+      console.log("===================================")
+      
+      // Validaciones adicionales
+      if (!Number.isInteger(marketId) || marketId < 0) {
+        throw new Error(`Market ID inválido: ${marketId}`)
+      }
+      
+      if (!Object.values(MarketOutcome).includes(outcome)) {
+        throw new Error(`Outcome inválido: ${outcome}`)
+      }
+      
+      // IMPORTANTE: Validar que el market haya expirado (igual que en closeMarket)
+      const marketInfo = await getMarketInfo(marketId)
+      if (!marketInfo) {
+        throw new Error(`Market ${marketId} no encontrado`)
+      }
+      
+      const now = Math.floor(Date.now() / 1000) // Tiempo actual en segundos
+      const marketEndTime = Number(marketInfo.endTime)
+      
+      console.log("🕒 Validación de tiempo:")
+      console.log("  - Tiempo actual:", now, "segundos")
+      console.log("  - Market endTime:", marketEndTime, "segundos")
+      console.log("  - Market expirado?", now >= marketEndTime)
+      console.log("  - Diferencia:", (marketEndTime - now), "segundos")
+      console.log("  - Outcome solicitado:", outcome)
+      
+      if (now < marketEndTime) {
+        const horasRestantes = Math.ceil((marketEndTime - now) / 3600)
+        const accionTexto = outcome === MarketOutcome.CANCELLED ? "cerrar/cancelar" : "resolver"
+        throw new Error(
+          `❌ LIMITACIÓN DEL CONTRATO: No se pueden ${accionTexto} markets antes de que terminen. ` +
+          `Este market termina en ${horasRestantes} horas. ` +
+          `Solo puedes ${accionTexto} markets DESPUÉS de su fecha de finalización.`
+        )
+      }
+      
+      if (marketInfo.resolved) {
+        throw new Error(`Market ${marketId} ya está resuelto`)
+      }
+      
       await writeContract({
         address: CONTRACTS.PREDICTION_MARKET,
         abi: PREDICTION_MARKET_ABI,
@@ -616,14 +877,92 @@ export function usePredictionMarketV2() {
         args: [BigInt(marketId), outcome],
       })
 
+      console.log("✅ ResolveMarket enviado correctamente")
       return hash || null
     } catch (error) {
-      console.error("Error resolviendo market:", error)
+      console.error("❌ Error resolviendo market:", error)
       const errorMessage = handleContractError(error)
       setTxError(errorMessage)
       throw new Error(errorMessage)
     }
-  }, [address, writeContract, isCorrectNet, isOwner, hash])
+  }, [address, writeContract, isCorrectNet, isOwner, hash, getMarketInfo])
+
+  // Función para resolver mercado en caso de emergencia (antes de que expire)
+  const emergencyResolveMarket = useCallback(async (
+    marketId: number,
+    outcome: MarketOutcome
+  ): Promise<string | null> => {
+    if (!isCorrectNet || !address) {
+      throw new Error("Conecta tu wallet a Arbitrum Sepolia")
+    }
+
+    if (!isOwner) {
+      throw new Error("Solo el propietario del contrato puede resolver markets en emergencia")
+    }
+
+    try {
+      setTxError("")
+      
+      console.log("🚨 === DEBUGGING EMERGENCY RESOLVE MARKET ===")
+      console.log("Market ID:", marketId, "Type:", typeof marketId)
+      console.log("Outcome:", outcome, "Type:", typeof outcome)
+      console.log("Market ID BigInt:", BigInt(marketId).toString())
+      console.log("Contract Address:", CONTRACTS.PREDICTION_MARKET)
+      console.log("User Address:", address)
+      console.log("Is Owner:", isOwner)
+      console.log("Valid Outcomes:", Object.values(MarketOutcome))
+      console.log("⚠️ EMERGENCY: No time validation will be performed")
+      console.log("=============================================")
+      
+      // Validaciones básicas (sin tiempo)
+      if (!Number.isInteger(marketId) || marketId < 0) {
+        throw new Error(`Market ID inválido: ${marketId}`)
+      }
+      
+      if (!Object.values(MarketOutcome).includes(outcome)) {
+        throw new Error(`Outcome inválido: ${outcome}`)
+      }
+      
+      // Verificar que el market existe y no está resuelto
+      const marketInfo = await getMarketInfo(marketId)
+      if (!marketInfo) {
+        throw new Error(`Market ${marketId} no encontrado`)
+      }
+      
+      if (marketInfo.resolved) {
+        throw new Error(`Market ${marketId} ya está resuelto`)
+      }
+      
+      const now = Math.floor(Date.now() / 1000)
+      const marketEndTime = Number(marketInfo.endTime)
+      const isActive = now < marketEndTime
+      
+      console.log("🕒 Información de tiempo (sin validación):")
+      console.log("  - Tiempo actual:", now, "segundos")
+      console.log("  - Market endTime:", marketEndTime, "segundos")
+      console.log("  - Market activo?", isActive)
+      console.log("  - Outcome solicitado:", outcome)
+      
+      if (isActive) {
+        console.log("⚠️ ADVERTENCIA: Resolviendo market ACTIVO en modo emergencia")
+      }
+      
+      await writeContract({
+        address: CONTRACTS.PREDICTION_MARKET,
+        abi: PREDICTION_MARKET_ABI,
+        functionName: "emergencyResolveMarket",
+        args: [BigInt(marketId), outcome],
+      })
+
+      console.log("✅ EmergencyResolveMarket enviado correctamente")
+      return hash || null
+    } catch (error) {
+      console.error("❌ Error en emergency resolve market:", error)
+      const errorMessage = handleContractError(error)
+      setTxError(errorMessage)
+      throw new Error(errorMessage)
+    }
+  }, [address, writeContract, isCorrectNet, isOwner, hash, getMarketInfo])
 
   // Función optimizada para comprar shares con verificación de allowance
   const buySharesWithAllowance = useCallback(async (
@@ -782,10 +1121,13 @@ export function usePredictionMarketV2() {
       // Obtener la imagen del almacenamiento local
       const marketImage = MarketImageStorage.getImage(market.id, CONTRACTS.PREDICTION_MARKET)
 
+      // Obtener la descripción del almacenamiento local
+      const marketDescription = MarketDescriptionStorage.getDescription(market.id, CONTRACTS.PREDICTION_MARKET)
+
       return {
         id: market.id.toString(),
         nombre: market.question,
-        descripcion: `Market de predicción: ${market.question}`,
+        descripcion: marketDescription || market.question, // Usar descripción real o fallback a la pregunta
         pregunta: market.question,
         categoria: "general",
         fechaFin: new Date(Number(market.endTime) * 1000).toISOString(),
@@ -816,6 +1158,36 @@ export function usePredictionMarketV2() {
       };
     })
   }, [marketsData, getAvailableMarkets])
+
+  // Función mejorada para obtener market count con verificación previa
+  const getMarketCountSafe = useCallback(async (): Promise<bigint> => {
+    if (!isCorrectNet) {
+      console.log("⚠️ Red incorrecta para obtener market count")
+      return BigInt(0)
+    }
+    
+    // Verificar conectividad primero
+    const isConnected = await verifyRPCConnectivity()
+    if (!isConnected) {
+      console.log("❌ RPC no disponible, no se puede obtener market count")
+      return BigInt(0)
+    }
+    
+    try {
+      console.log("🔢 Obteniendo market count...")
+      const count = await publicClient.readContract({
+        address: CONTRACTS.PREDICTION_MARKET,
+        abi: PREDICTION_MARKET_ABI,
+        functionName: "marketCount"
+      }) as bigint
+      
+      console.log("✅ Market count obtenido:", count.toString())
+      return count
+    } catch (error: any) {
+      console.error("❌ Error obteniendo market count:", error)
+      return BigInt(0)
+    }
+  }, [isCorrectNet, verifyRPCConnectivity])
 
   return {
     // Estado de conexión
@@ -878,6 +1250,7 @@ export function usePredictionMarketV2() {
     buyShares,
     claimWinnings,
     resolveMarket,
+    emergencyResolveMarket, // Nueva función para resolver markets en caso de emergencia
     closeMarket,  // Nueva función para cerrar markets
 
     // Funciones de filtrado
@@ -889,6 +1262,8 @@ export function usePredictionMarketV2() {
     canUserBuyShares, // Nueva función de diagnóstico
     debugTransactionFailure, // Nueva función de debug
     diagnoseContractBetIssue, // Nueva función de diagnóstico
+    verifyRPCConnectivity, // Nueva función de verificación de conectividad
+    getMarketCountSafe, // Nueva función para obtener market count de forma segura
     MarketOutcome,
   }
 } 

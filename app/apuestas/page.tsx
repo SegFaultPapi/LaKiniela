@@ -281,7 +281,17 @@ export default function ApuestasPage() {
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <CardTitle className="text-lg mb-2">{evento.nombre}</CardTitle>
-                      <CardDescription>{evento.descripcion}</CardDescription>
+                      
+                      {/* Mostrar descripción siempre debajo del nombre */}
+                      {evento.descripcion && evento.descripcion !== evento.nombre ? (
+                        <CardDescription className="line-clamp-2">
+                          {evento.descripcion.length > 120 ? `${evento.descripcion.substring(0, 120)}...` : evento.descripcion}
+                        </CardDescription>
+                      ) : (
+                        <CardDescription className="italic opacity-75 text-xs">
+                          Descripción personalizada no disponible
+                        </CardDescription>
+                      )}
                     </div>
                     <Badge variant="secondary" className="ml-2">
                       {evento.categoria}

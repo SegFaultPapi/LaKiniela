@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -12,8 +12,9 @@ import { usePathname, useRouter } from "next/navigation"
 import { useUser } from "@/hooks/useUser"
 import { useDisconnect } from "wagmi"
 import { usePortalWallet } from "@/hooks/usePortalWallet"
-import { usePredictionMarket } from "@/hooks/use-prediction-market"
+import { usePredictionMarketV2 } from "@/hooks/use-prediction-market-v2"
 import { DepositModal } from "@/components/deposit-modal"
+import { formatMXNB, MarketOutcome } from "@/lib/contracts-config"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,6 +28,8 @@ export function Navbar() {
   const [searchTerm, setSearchTerm] = useState("")
   const [profileImage, setProfileImage] = useState("")
   const [isDepositModalOpen, setIsDepositModalOpen] = useState(false)
+  const [totalInvertidoActivos, setTotalInvertidoActivos] = useState(0)
+  const [loadingTotal, setLoadingTotal] = useState(false)
   const pathname = usePathname()
   const router = useRouter()
   const { disconnect } = useDisconnect()
@@ -43,8 +46,60 @@ export function Navbar() {
     connectionType
   } = useUser()
 
-  // Hook para obtener balance y posiciones
-  const { balance, userBets } = usePredictionMarket()
+  // Hook para obtener balance y markets v2
+  const { 
+    balance, 
+    markets, 
+    getUserShares,
+    address,
+    loadingMarkets 
+  } = usePredictionMarketV2()
+
+  // Función para calcular total invertido en markets activos
+  const calcularTotalInvertidoActivos = useCallback(async () => {
+    if (!address || !isConnected || markets.length === 0) {
+      setTotalInvertidoActivos(0)
+      return
+    }
+
+    setLoadingTotal(true)
+    
+    try {
+      let totalInvertido = 0
+      
+      // Obtener shares del usuario para cada market activo
+      for (const market of markets) {
+        // Solo contar markets activos (no finalizados ni cancelados)
+        const esActivo = !market.resolved && 
+                         market.outcome !== MarketOutcome.CANCELLED && 
+                         Number(market.endTime) * 1000 > Date.now()
+        
+        if (esActivo) {
+          const userShares = await getUserShares(market.id, address)
+          
+          if (userShares && (userShares.optionAShares > 0 || userShares.optionBShares > 0)) {
+            // Usar shares como aproximación de la inversión (shares = MXNB invertido)
+            const totalShares = Number(formatMXNB(userShares.optionAShares + userShares.optionBShares))
+            totalInvertido += totalShares
+          }
+        }
+      }
+      
+      setTotalInvertidoActivos(totalInvertido)
+    } catch (error) {
+      console.error("Error calculando total invertido en markets activos:", error)
+      setTotalInvertidoActivos(0)
+    } finally {
+      setLoadingTotal(false)
+    }
+  }, [address, isConnected, markets, getUserShares])
+
+  // Recalcular cuando cambien los markets o la dirección
+  useEffect(() => {
+    if (markets.length > 0 && !loadingMarkets) {
+      calcularTotalInvertidoActivos()
+    }
+  }, [markets, loadingMarkets, calcularTotalInvertidoActivos])
 
   // Cargar imagen de perfil desde localStorage
   useEffect(() => {
@@ -56,17 +111,12 @@ export function Navbar() {
     }
   }, [user])
 
-  // Calcular total apostado
-  const totalApostado = useMemo(() => {
-    return userBets.reduce((sum, pos) => sum + pos.cantidad, 0)
-  }, [userBets])
-
   // Función para formatear números con K cuando son grandes
   const formatCurrency = (amount: number) => {
     if (amount >= 10000) {
-      return `$${(amount / 1000).toFixed(2)}K`
+      return `${(amount / 1000).toFixed(2)}K`
     }
-    return `$${amount.toFixed(2)}`
+    return `${amount.toFixed(2)}`
   }
 
   // Determinar si el usuario está completamente conectado y configurado
@@ -199,7 +249,7 @@ export function Navbar() {
                     >
                       <div className="flex flex-col items-center justify-center">
                         <span className="text-base font-medium text-center">Posiciones</span>
-                        <span className="text-lg font-bold text-green-600 leading-none">{formatCurrency(totalApostado)}</span>
+                        <span className="text-lg font-bold text-green-600 leading-none">{formatCurrency(totalInvertidoActivos)}</span>
                       </div>
                     </Button>
                   </Link>
@@ -344,7 +394,7 @@ export function Navbar() {
                     >
                       <div className="flex flex-col items-center">
                         <span className="text-xl font-medium text-center">Posiciones</span>
-                        <span className="text-2xl font-bold text-green-600 leading-none">{formatCurrency(totalApostado)}</span>
+                        <span className="text-2xl font-bold text-green-600 leading-none">{formatCurrency(totalInvertidoActivos)}</span>
                       </div>
                     </Button>
                   </Link>

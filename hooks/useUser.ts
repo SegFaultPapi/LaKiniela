@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAccount } from 'wagmi'
 import { usePortalWallet } from '@/hooks/usePortalWallet'
+import { CURRENT_CONTRACT_ADDRESS } from '@/lib/contracts-config'
 
 export interface UserData {
   username: string
@@ -31,7 +32,10 @@ export function useUser() {
   // Función para verificar si existe un usuario para una wallet específica
   const checkUserExistsForWallet = useCallback((address: string): UserData | null => {
     try {
-      const userData = localStorage.getItem('la-kiniela-user')
+      // Incluir la dirección del contrato en el key para hacer el nombre de usuario específico por contrato
+      const userKey = `la-kiniela-user-${CURRENT_CONTRACT_ADDRESS}-${address}`
+      
+      const userData = localStorage.getItem(userKey)
       if (userData) {
         const parsedUser = JSON.parse(userData)
         if (parsedUser.walletAddress === address) {
@@ -82,6 +86,9 @@ export function useUser() {
 
   // Función para configurar el nombre de usuario
   const setUsername = useCallback((username: string) => {
+    const userKey = `la-kiniela-user-${CURRENT_CONTRACT_ADDRESS}-${walletAddress}`
+    const usernamesKey = `la-kiniela-usernames-${CURRENT_CONTRACT_ADDRESS}`
+    
     const userData: UserData = {
       username: username.toLowerCase(),
       walletAddress,
@@ -90,13 +97,13 @@ export function useUser() {
     }
 
     try {
-      localStorage.setItem('la-kiniela-user', JSON.stringify(userData))
+      localStorage.setItem(userKey, JSON.stringify(userData))
       
-      // Agregar a lista de usernames existentes
-      const existingUsernames = JSON.parse(localStorage.getItem('la-kiniela-usernames') || '[]')
+      // Agregar a lista de usernames existentes específica por contrato
+      const existingUsernames = JSON.parse(localStorage.getItem(usernamesKey) || '[]')
       if (!existingUsernames.includes(username.toLowerCase())) {
         existingUsernames.push(username.toLowerCase())
-        localStorage.setItem('la-kiniela-usernames', JSON.stringify(existingUsernames))
+        localStorage.setItem(usernamesKey, JSON.stringify(existingUsernames))
       }
 
       setUser(userData)
@@ -147,7 +154,8 @@ export function useUser() {
   // Función para verificar si un username está disponible
   const isUsernameAvailable = useCallback((username: string): boolean => {
     try {
-      const existingUsernames = JSON.parse(localStorage.getItem('la-kiniela-usernames') || '[]')
+      const usernamesKey = `la-kiniela-usernames-${CURRENT_CONTRACT_ADDRESS}`
+      const existingUsernames = JSON.parse(localStorage.getItem(usernamesKey) || '[]')
       return !existingUsernames.includes(username.toLowerCase())
     } catch (error) {
       console.error('Error checking username availability:', error)

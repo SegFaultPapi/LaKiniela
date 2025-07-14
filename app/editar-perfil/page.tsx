@@ -19,6 +19,7 @@ import {
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useUser } from "@/hooks/useUser"
+import { CURRENT_CONTRACT_ADDRESS } from "@/lib/contracts-config"
 
 export default function EditarPerfilPage() {
   const router = useRouter()
@@ -50,8 +51,9 @@ export default function EditarPerfilPage() {
   useEffect(() => {
     if (user) {
       setNewUsername(user.username)
-      // Cargar imagen de perfil desde localStorage si existe
-      const savedImage = localStorage.getItem(`la-kiniela-profile-image-${user.walletAddress}`)
+      // Cargar imagen de perfil desde localStorage usando clave específica por contrato
+      const imageKey = `la-kiniela-profile-image-${CURRENT_CONTRACT_ADDRESS}-${user.walletAddress}`
+      const savedImage = localStorage.getItem(imageKey)
       if (savedImage) {
         setProfileImage(savedImage)
         setImagePreview(savedImage)
@@ -117,7 +119,8 @@ export default function EditarPerfilPage() {
     setProfileImage("")
     setImagePreview("")
     if (user) {
-      localStorage.removeItem(`la-kiniela-profile-image-${user.walletAddress}`)
+      const imageKey = `la-kiniela-profile-image-${CURRENT_CONTRACT_ADDRESS}-${user.walletAddress}`
+      localStorage.removeItem(imageKey)
     }
   }
 
@@ -153,11 +156,13 @@ export default function EditarPerfilPage() {
         await updateUsername(newUsername)
       }
 
-      // Guardar imagen de perfil
+      // Guardar imagen de perfil con clave específica por contrato
       if (user && profileImage) {
-        localStorage.setItem(`la-kiniela-profile-image-${user.walletAddress}`, profileImage)
+        const imageKey = `la-kiniela-profile-image-${CURRENT_CONTRACT_ADDRESS}-${user.walletAddress}`
+        localStorage.setItem(imageKey, profileImage)
       } else if (user && !profileImage) {
-        localStorage.removeItem(`la-kiniela-profile-image-${user.walletAddress}`)
+        const imageKey = `la-kiniela-profile-image-${CURRENT_CONTRACT_ADDRESS}-${user.walletAddress}`
+        localStorage.removeItem(imageKey)
       }
 
       setSuccess("Perfil actualizado exitosamente")

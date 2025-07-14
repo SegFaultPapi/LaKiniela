@@ -63,7 +63,8 @@ import { ImageUpload } from "@/components/image-upload"
 import { ConnectButton } from "@rainbow-me/rainbowkit"
 import { useToast } from "@/hooks/use-toast"
 import { MarketImageStorage } from "@/lib/market-images"
-import { CONTRACTS } from "@/lib/contracts-config"
+import { MarketDescriptionStorage } from "@/lib/market-descriptions"
+import { CONTRACTS, MIN_MARKET_DURATION, MAX_MARKET_DURATION, CURRENT_CONTRACT_ADDRESS } from "@/lib/contracts-config"
 
 export default function InicioPage() {
   const { disconnect } = useDisconnect()
@@ -263,7 +264,6 @@ export default function InicioPage() {
   const [nuevoMarket, setNuevoMarket] = useState({
     nombre: "",
     descripcion: "",
-    pregunta: "",
     fechaFin: "",
     categoria: "general",
     poolInicial: 1000,
@@ -366,19 +366,39 @@ export default function InicioPage() {
           loadAllMarkets()
         }, 2000)
       } else if (currentTxType === 'participation') {
+        // Obtener datos de la participación guardados
+        const participationData = sessionStorage.getItem('pending-participation')
+        let toastDescription = `Tu apuesta ha sido registrada correctamente. ¡Buena suerte! Transacción: ${lastTxHash.slice(0, 10)}...`
+        
+        if (participationData) {
+          try {
+            const data = JSON.parse(participationData)
+            toastDescription = `🎯 Market: ${data.marketName}\n💰 Apuesta: ${data.amount} MXNB en "${data.option}"\n📈 Ganancia potencial: ${data.potentialWinnings} MXNB\n🔗 TX: ${lastTxHash.slice(0, 10)}... - Ver en Arbiscan`
+            // Limpiar datos temporales
+            sessionStorage.removeItem('pending-participation')
+          } catch (error) {
+            console.log("Error parsing participation data:", error)
+          }
+        }
+        
         toast({
-          title: "💰 ¡Participación Exitosa!",
-          description: `Tu apuesta ha sido registrada correctamente. ¡Buena suerte! Transacción: ${lastTxHash.slice(0, 10)}... - Ver en: https://sepolia.arbiscan.io/tx/${lastTxHash}`,
-          duration: 8000,
+          title: "🎉 ¡Participación Exitosa!",
+          description: toastDescription,
+          duration: 10000,
         })
-        // Refrescar balance y cerrar modal
+        
+        // Cerrar modal inmediatamente y limpiar estados
+        setDialogOpen(false)
+        setEventoSeleccionado(null)
+        setOpcionSeleccionada("")
+        setCantidadPosicion("")
+        setTxError("")
+        
+        // Refrescar balance y markets después de un momento
         setTimeout(() => {
           refetchBalance()
-          setDialogOpen(false)
-          setEventoSeleccionado(null)
-          setOpcionSeleccionada("")
-          setCantidadPosicion("")
-        }, 2000)
+          loadAllMarkets() // Agregar para actualizar los totales de participaciones
+        }, 1000)
       }
       
       // Resetear el tipo de transacción y limpiar errores
@@ -388,6 +408,7 @@ export default function InicioPage() {
       // Refrescar datos generales
       setTimeout(() => {
         refetchBalance()
+        loadAllMarkets() // Asegurar que los markets se actualicen en todos los casos
       }, 3000)
     }
   }, [isConfirmed, lastTxHash, currentTxType, toast, refetchBalance, refetchMarketCount, loadAllMarkets])
@@ -406,7 +427,10 @@ export default function InicioPage() {
   // Toast de bienvenida cuando el usuario está completamente configurado
   useEffect(() => {
     if (isConnected && isUserSetup() && balance && marketCount !== undefined) {
-      const welcomeShown = sessionStorage.getItem('welcome-toast-shown')
+      // Usar clave específica por contrato y usuario para el toast de bienvenida
+      const welcomeKey = `welcome-toast-shown-${CURRENT_CONTRACT_ADDRESS}-${address}`
+      const welcomeShown = sessionStorage.getItem(welcomeKey)
+      
       if (!welcomeShown) {
         setTimeout(() => {
           toast({
@@ -414,11 +438,11 @@ export default function InicioPage() {
             description: `¡Hola ${getUserDisplay()}! Tu cuenta está lista. Balance: ${balance} MXNB | Markets disponibles: ${marketCount}`,
             duration: 5000,
           })
-          sessionStorage.setItem('welcome-toast-shown', 'true')
+          sessionStorage.setItem(welcomeKey, 'true')
         }, 1000)
       }
     }
-  }, [isConnected, isUserSetup, balance, marketCount, toast, getUserDisplay])
+  }, [isConnected, isUserSetup, balance, marketCount, toast, getUserDisplay, address])
 
   // Efecto para limpiar imágenes antiguas al cargar la página
   useEffect(() => {
@@ -443,6 +467,15 @@ export default function InicioPage() {
       if (buyHash) {
         setTxError("⏳ Transacción enviada, esperando confirmación...")
         console.log("🔄 Hash de transacción:", buyHash)
+        
+        // Guardar datos de la transacción para el resumen
+        sessionStorage.setItem('pending-participation', JSON.stringify({
+          marketName: eventoSeleccionado.nombre,
+          option: opcionSeleccionada === "si" ? eventoSeleccionado.opciones.find(o => o.id === "si")?.nombre : eventoSeleccionado.opciones.find(o => o.id === "no")?.nombre,
+          amount: cantidadPosicion,
+          potentialWinnings: calcularGananciaPotencial().toFixed(2),
+          hash: buyHash
+        }))
       }
       
     } catch (error: any) {
@@ -472,10 +505,44 @@ export default function InicioPage() {
   }
 
   const manejarCrearMarket = async () => {
-    if (!nuevoMarket.nombre || !nuevoMarket.pregunta || !nuevoMarket.fechaFin) {
+    if (!nuevoMarket.nombre || !nuevoMarket.fechaFin) {
       setTxError("❌ Por favor completa todos los campos requeridos")
       return
     }
+
+    // Validar duración del market
+    const now = new Date()
+    const endDate = new Date(nuevoMarket.fechaFin)
+    const durationSeconds = Math.floor((endDate.getTime() - now.getTime()) / 1000)
+    
+    // Validaciones de duración usando las constantes del contrato
+    if (durationSeconds < MIN_MARKET_DURATION) {
+      const horasMinimas = Math.ceil(MIN_MARKET_DURATION / 3600)
+      setTxError(`❌ La fecha de finalización debe ser al menos ${horasMinimas} hora(s) en el futuro`)
+      return
+    }
+    
+    if (durationSeconds > MAX_MARKET_DURATION) {
+      const diasMaximos = Math.floor(MAX_MARKET_DURATION / (24 * 3600))
+      setTxError(`❌ La duración máxima permitida es ${diasMaximos} días. Por favor selecciona una fecha más cercana.`)
+      return
+    }
+    
+    // Convertir a horas para el contrato (redondeado hacia arriba para asegurar que cumple el mínimo)
+    const durationHours = Math.ceil(durationSeconds / 3600)
+    
+    console.log("✅ Duración validada:", {
+      durationSeconds,
+      durationHours,
+      durationDays: (durationHours / 24).toFixed(1),
+      minSeconds: MIN_MARKET_DURATION,
+      maxSeconds: MAX_MARKET_DURATION,
+      contractLimits: {
+        minHours: MIN_MARKET_DURATION / 3600,
+        maxHours: MAX_MARKET_DURATION / 3600,
+        maxDays: MAX_MARKET_DURATION / (24 * 3600)
+      }
+    })
 
     setTxError("")
     setIsUploading(true)
@@ -506,18 +573,13 @@ export default function InicioPage() {
       // Obtener el ID que tendrá el nuevo market (marketCount actual)
       const newMarketId = marketCount || 0
 
-      // Calcular duración en horas desde ahora hasta la fecha fin
-      const now = new Date()
-      const endDate = new Date(nuevoMarket.fechaFin)
-      const durationHours = Math.max(1, Math.floor((endDate.getTime() - now.getTime()) / (1000 * 60 * 60)))
-
       setTxError("⏳ Creando market en blockchain...")
       
       // Establecer el tipo de transacción
       setCurrentTxType('market_creation')
 
       await createMarket(
-        nuevoMarket.pregunta,
+        nuevoMarket.nombre, // Usar el nombre como pregunta
         "Sí", // optionA
         "No", // optionB
         durationHours
@@ -529,13 +591,18 @@ export default function InicioPage() {
         MarketImageStorage.saveImage(newMarketId, imageUrl, CONTRACTS.PREDICTION_MARKET)
       }
 
+      // Guardar la descripción asociada al market ID si existe
+      if (nuevoMarket.descripcion && typeof newMarketId === 'number') {
+        console.log("📝 Guardando descripción para market ID:", newMarketId)
+        MarketDescriptionStorage.saveDescription(newMarketId, nuevoMarket.descripcion, CONTRACTS.PREDICTION_MARKET)
+      }
+
       setTxError("⏳ Transacción enviada, esperando confirmación...")
 
       // Limpiar formulario
       setNuevoMarket({
         nombre: "",
         descripcion: "",
-        pregunta: "",
         fechaFin: "",
         categoria: "general",
         poolInicial: 1000,
@@ -647,36 +714,82 @@ export default function InicioPage() {
             <div className="relative">
               <div className="bg-white rounded-2xl p-8 shadow-xl border border-primary/20">
                 <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-lg font-semibold text-foreground">Markets Activos</h3>
-                  <Badge variant="outline" className="text-green-600 border-green-600">
-                    {eventosDisponibles.length} activos
+                  <h3 className="text-lg font-semibold text-foreground">Nuevos Markets</h3>
+                  <Badge variant="outline" className="text-primary border-primary">
+                    {eventosDisponibles.length > 0 ? `${Math.min(2, eventosDisponibles.length)} recientes` : '0 markets'}
                   </Badge>
                 </div>
                 {!isConnected ? (
                   <div className="text-center py-8">
                     <Key className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-muted-foreground font-medium">Inicia sesión primero para ver los markets activos</p>
+                    <p className="text-muted-foreground font-medium">Inicia sesión primero para ver los markets más recientes</p>
                     <p className="text-sm text-muted-foreground mt-2">Conecta tu wallet o regístrate para participar</p>
                   </div>
                 ) : eventosDisponibles.length > 0 ? (
-                  <div className="space-y-4">
-                    {eventosDisponibles.slice(0, 3).map((evento) => (
-                      <div key={evento.id} className="p-4 border border-primary/10 rounded-lg bg-primary/5">
-                        <h4 className="font-medium text-foreground mb-2">{evento.nombre}</h4>
-                        <p className="text-sm text-muted-foreground mb-3">{evento.pregunta}</p>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-primary font-medium">
-                            Pool: {evento.opciones[0].cuota.toFixed(2)}x
-                          </span>
-                          <span className="text-muted-foreground">
-                            {evento.opciones[0].probabilidad.toFixed(0)}% Sí
-                          </span>
+                  <div className="space-y-6">
+                    {eventosDisponibles.slice(-2).reverse().map((evento) => (
+                      <div key={evento.id} className="border border-primary/10 rounded-xl bg-gradient-to-br from-white to-primary/5 shadow-md hover:shadow-lg transition-shadow">
+                        <div className="flex items-center">
+                          {/* Imagen a la izquierda */}
+                          <div className="w-24 h-24 flex-shrink-0 rounded-l-xl overflow-hidden bg-gradient-to-br from-primary/10 to-primary/20 relative">
+                            {evento.imagen ? (
+                              <Image
+                                src={evento.imagen}
+                                alt={evento.nombre}
+                                fill
+                                className="object-cover"
+                                onError={(e) => {
+                                  const target = e.currentTarget;
+                                  target.style.display = 'none';
+                                }}
+                              />
+                            ) : (
+                              <div className="absolute inset-0 flex items-center justify-center">
+                                <ImageIcon className="w-8 h-8 text-primary/40" />
+                              </div>
+                            )}
+                          </div>
+                          
+                          {/* Contenido a la derecha */}
+                          <div className="flex-1 p-4">
+                            <h4 className="font-medium text-foreground mb-1 line-clamp-1">{evento.nombre}</h4>
+                            
+                            {/* Mostrar descripción siempre debajo del nombre */}
+                            <div className="mb-3">
+                              {evento.descripcion && evento.descripcion !== evento.nombre ? (
+                                <p className="text-sm text-muted-foreground line-clamp-2">
+                                  {evento.descripcion.length > 100 ? `${evento.descripcion.substring(0, 100)}...` : evento.descripcion}
+                                </p>
+                              ) : (
+                                <p className="text-xs text-muted-foreground italic opacity-60">
+                                  Sin descripción personalizada
+                                </p>
+                              )}
+                            </div>
+
+                            <div className="flex justify-between items-center text-xs">
+                              <div className="flex items-center space-x-3">
+                                <span className="text-primary font-medium bg-primary/10 px-2 py-1 rounded">
+                                  Pool: {evento.opciones[0].cuota.toFixed(1)}x
+                                </span>
+                                <span className="text-green-600 font-medium">
+                                  {evento.opciones[0].probabilidad.toFixed(0)}% Sí
+                                </span>
+                              </div>
+                              <div className="text-muted-foreground">
+                                {new Date(evento.fechaFin).toLocaleDateString("es-ES", { 
+                                  month: "short", 
+                                  day: "numeric" 
+                                })}
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     ))}
                     <Button 
                       variant="outline" 
-                      className="w-full mt-4 border-primary/20 hover:bg-primary/10"
+                      className="w-full mt-4 border-primary/20 hover:bg-primary/10 text-primary"
                       onClick={() => setDialogOpen(true)}
                     >
                       Ver todos los markets
@@ -685,7 +798,8 @@ export default function InicioPage() {
                 ) : (
                   <div className="text-center py-8 text-muted-foreground">
                     <BarChart3 className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                    <p>No hay markets activos en este momento</p>
+                    <p>No hay markets disponibles</p>
+                    <p className="text-sm mt-2">¡Sé el primero en crear uno!</p>
                   </div>
                 )}
               </div>
@@ -711,20 +825,20 @@ export default function InicioPage() {
           </div>
 
           {/* Filtros de categorías */}
-          <div className="flex flex-wrap gap-2 mb-8">
+          <div className="flex flex-wrap gap-3 mb-8">
             {categorias.map((categoria) => (
               <Button
                 key={categoria.id}
                 variant={categoriaActiva === categoria.id ? "default" : "outline"}
-                size="sm"
+                size="lg"
                 onClick={() => setCategoriaActiva(categoria.id)}
                 className={
                   categoriaActiva === categoria.id
-                    ? "bg-primary text-white hover:bg-primary/90"
-                    : "border-primary/20 text-foreground hover:bg-primary/10"
+                    ? "bg-primary text-white hover:bg-primary/90 px-8 py-4 text-lg font-semibold"
+                    : "border-primary/20 text-foreground hover:bg-primary/10 px-8 py-4 text-lg font-semibold"
                 }
               >
-                <categoria.icon className="w-4 h-4 mr-2" />
+                <categoria.icon className="w-5 h-5 mr-3" />
                 {categoria.nombre}
               </Button>
             ))}
@@ -789,9 +903,21 @@ export default function InicioPage() {
                     </div>
                   )}
                   <CardContent className="p-6">
-                    <h3 className="text-xl font-bold text-foreground mb-3">{evento.nombre}</h3>
-                    <p className="text-muted-foreground mb-4">{evento.pregunta}</p>
+                    <h3 className="text-xl font-bold text-foreground mb-2">{evento.nombre}</h3>
                     
+                    {/* Mostrar descripción siempre debajo del nombre */}
+                    <div className="mb-4">
+                      {evento.descripcion && evento.descripcion !== evento.nombre ? (
+                        <p className="text-muted-foreground text-sm line-clamp-2">
+                          {evento.descripcion.length > 150 ? `${evento.descripcion.substring(0, 150)}...` : evento.descripcion}
+                        </p>
+                      ) : (
+                        <p className="text-muted-foreground text-sm italic opacity-75">
+                          Descripción personalizada no disponible
+                        </p>
+                      )}
+                    </div>
+
                     <div className="grid grid-cols-2 gap-3 mb-4">
                       {evento.opciones.map((opcion) => (
                         <div
@@ -877,8 +1003,8 @@ export default function InicioPage() {
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label className="text-sm font-medium text-foreground">Pregunta</Label>
-              <p className="text-sm text-muted-foreground mt-1">{eventoSeleccionado?.pregunta}</p>
+              <Label className="text-sm font-medium text-foreground">Market</Label>
+              <p className="text-sm text-muted-foreground mt-1">{eventoSeleccionado?.nombre}</p>
             </div>
             <div>
               <Label className="text-sm font-medium text-foreground">Selecciona tu predicción</Label>
@@ -932,51 +1058,57 @@ export default function InicioPage() {
               </Alert>
             )}
             
-            {/* Mostrar botón de approve si no tiene allowance infinito */}
-            {!hasInfiniteAllowance && (
-              <Alert>
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                  Necesitas aprobar tokens MXNB antes de participar.
-                </AlertDescription>
-              </Alert>
-            )}
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>
-              Cancelar
-            </Button>
-            
-            {/* Botón de aprobar si no tiene allowance infinito */}
+          <DialogFooter className="flex flex-col gap-3">
+            {/* Botón de aprobar si no tiene allowance infinito - En su propia fila */}
             {!hasInfiniteAllowance && (
+              <div className="w-full">
+                <Alert className="mb-3">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    Necesitas aprobar tokens MXNB antes de participar.
+                  </AlertDescription>
+                </Alert>
+                <Button
+                  onClick={async () => {
+                    setTxError("⏳ Aprobando tokens MXNB...")
+                    setCurrentTxType('approval') // Establecer tipo de transacción
+                    try {
+                      await approveInfiniteMXNB()
+                      setTxError("⏳ Aprobación enviada, esperando confirmación...")
+                    } catch (error: any) {
+                      setCurrentTxType(null) // Resetear en caso de error
+                      setTxError("❌ Error al aprobar: " + (error.message || "Error desconocido"))
+                    }
+                  }}
+                  disabled={isWritePending || isConfirming}
+                  className="w-full bg-blue-600 hover:bg-blue-700"
+                >
+                  {(isWritePending || isConfirming) && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  Aprobar MXNB (Solo una vez)
+                </Button>
+              </div>
+            )}
+            
+            {/* Botones principales - En una fila separada */}
+            <div className="flex gap-3 w-full">
+              <Button 
+                variant="outline" 
+                onClick={() => setDialogOpen(false)}
+                className="flex-1"
+              >
+                Cancelar
+              </Button>
+              
               <Button
-                onClick={async () => {
-                  setTxError("⏳ Aprobando tokens MXNB...")
-                  setCurrentTxType('approval') // Establecer tipo de transacción
-                  try {
-                    await approveInfiniteMXNB()
-                    setTxError("⏳ Aprobación enviada, esperando confirmación...")
-                  } catch (error: any) {
-                    setCurrentTxType(null) // Resetear en caso de error
-                    setTxError("❌ Error al aprobar: " + (error.message || "Error desconocido"))
-                  }
-                }}
-                disabled={isWritePending || isConfirming}
-                className="bg-blue-600 hover:bg-blue-700"
+                onClick={manejarPosicion}
+                disabled={!opcionSeleccionada || !cantidadPosicion || isWritePending || isConfirming || !hasInfiniteAllowance}
+                className="flex-1 bg-primary hover:bg-primary/90"
               >
                 {(isWritePending || isConfirming) && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                Aprobar MXNB
+                {isWritePending ? "Confirmando..." : isConfirming ? "Procesando..." : "Participar"}
               </Button>
-            )}
-            
-            <Button
-              onClick={manejarPosicion}
-              disabled={!opcionSeleccionada || !cantidadPosicion || isWritePending || isConfirming || !hasInfiniteAllowance}
-              className="bg-primary hover:bg-primary/90"
-            >
-              {(isWritePending || isConfirming) && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              {isWritePending ? "Confirmando..." : isConfirming ? "Procesando..." : "Participar"}
-            </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1048,11 +1180,14 @@ export default function InicioPage() {
               </Label>
               <Input
                 id="nombre"
-                placeholder="Ej: Bitcoin $120K Septiembre 2024"
+                placeholder="Ej: ¿Bitcoin alcanzará $120,000 antes de septiembre 2024?"
                 value={nuevoMarket.nombre}
                 onChange={(e) => setNuevoMarket({ ...nuevoMarket, nombre: e.target.value })}
                 className="mt-1"
               />
+              <p className="text-xs text-muted-foreground mt-1">
+                Escribe la pregunta de predicción que quieres crear
+              </p>
             </div>
             <div>
               <Label htmlFor="descripcion" className="text-sm font-medium text-foreground">
@@ -1060,24 +1195,15 @@ export default function InicioPage() {
               </Label>
               <Textarea
                 id="descripcion"
-                placeholder="Descripción detallada del evento..."
+                placeholder="Descripción detallada del evento (opcional)..."
                 value={nuevoMarket.descripcion}
                 onChange={(e) => setNuevoMarket({ ...nuevoMarket, descripcion: e.target.value })}
                 className="mt-1"
                 rows={3}
               />
-            </div>
-            <div>
-              <Label htmlFor="pregunta" className="text-sm font-medium text-foreground">
-                Pregunta de Predicción *
-              </Label>
-              <Input
-                id="pregunta"
-                placeholder="¿Bitcoin alcanzará $120,000 antes de septiembre 2024?"
-                value={nuevoMarket.pregunta}
-                onChange={(e) => setNuevoMarket({ ...nuevoMarket, pregunta: e.target.value })}
-                className="mt-1"
-              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Información adicional sobre el market (se mostrará en la tarjeta)
+              </p>
             </div>
             <div>
               <Label htmlFor="categoria" className="text-sm font-medium text-foreground">
@@ -1109,7 +1235,39 @@ export default function InicioPage() {
                 value={nuevoMarket.fechaFin}
                 onChange={(e) => setNuevoMarket({ ...nuevoMarket, fechaFin: e.target.value })}
                 className="mt-1"
+                min={(() => {
+                  // Mínimo: MIN_MARKET_DURATION segundos desde ahora
+                  const minDate = new Date()
+                  minDate.setSeconds(minDate.getSeconds() + MIN_MARKET_DURATION)
+                  return minDate.toISOString().split('T')[0]
+                })()}
+                max={(() => {
+                  // Máximo: MAX_MARKET_DURATION segundos desde ahora
+                  const maxDate = new Date()
+                  maxDate.setSeconds(maxDate.getSeconds() + MAX_MARKET_DURATION)
+                  return maxDate.toISOString().split('T')[0]
+                })()}
               />
+              <p className="text-xs text-muted-foreground mt-1">
+                📅 Duración válida: desde {Math.ceil(MIN_MARKET_DURATION / 3600)} horas hasta {Math.floor(MAX_MARKET_DURATION / (24 * 3600))} días desde ahora
+                {nuevoMarket.fechaFin && (() => {
+                  const now = new Date()
+                  const endDate = new Date(nuevoMarket.fechaFin)
+                  const durationSeconds = Math.floor((endDate.getTime() - now.getTime()) / 1000)
+                  const durationHours = Math.ceil(durationSeconds / 3600)
+                  const durationDays = (durationHours / 24).toFixed(1)
+                  
+                  if (durationSeconds < MIN_MARKET_DURATION) {
+                    const horasMinimas = Math.ceil(MIN_MARKET_DURATION / 3600)
+                    return ` ⚠️ Muy pronto (necesita al menos ${horasMinimas}h)`
+                  } else if (durationSeconds > MAX_MARKET_DURATION) {
+                    const diasMaximos = Math.floor(MAX_MARKET_DURATION / (24 * 3600))
+                    return ` ⚠️ Muy lejano (máximo ${diasMaximos} días)`
+                  } else {
+                    return ` ✅ Duración: ${durationDays} días`
+                  }
+                })()}
+              </p>
             </div>
             <div>
               <Label htmlFor="poolInicial" className="text-sm font-medium text-foreground">
@@ -1140,7 +1298,7 @@ export default function InicioPage() {
             </Button>
             <Button
               onClick={manejarCrearMarket}
-              disabled={!nuevoMarket.nombre || !nuevoMarket.pregunta || !nuevoMarket.fechaFin || isUploading}
+              disabled={!nuevoMarket.nombre || !nuevoMarket.fechaFin || isUploading}
               className="bg-primary hover:bg-primary/90"
             >
               {(isUploading) && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}

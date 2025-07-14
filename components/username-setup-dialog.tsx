@@ -21,6 +21,7 @@ import {
 } from 'lucide-react'
 import { useAccount } from 'wagmi'
 import { usePortalWallet } from '@/hooks/usePortalWallet'
+import { CURRENT_CONTRACT_ADDRESS } from '@/lib/contracts-config'
 
 interface UsernameSetupDialogProps {
   isOpen: boolean
@@ -98,15 +99,19 @@ export function UsernameSetupDialog({ isOpen, onClose, onUsernameSet }: Username
       // Simular verificación de disponibilidad
       await new Promise(resolve => setTimeout(resolve, 1000))
       
-      // Verificar si el username ya existe (simulado)
-      const existingUsernames = JSON.parse(localStorage.getItem('la-kiniela-usernames') || '[]')
+      // Usar claves específicas por contrato para consistencia con useUser
+      const userKey = `la-kiniela-user-${CURRENT_CONTRACT_ADDRESS}-${walletAddress}`
+      const usernamesKey = `la-kiniela-usernames-${CURRENT_CONTRACT_ADDRESS}`
+      
+      // Verificar si el username ya existe (específico por contrato)
+      const existingUsernames = JSON.parse(localStorage.getItem(usernamesKey) || '[]')
       if (existingUsernames.includes(username.toLowerCase())) {
         setError('Este nombre de usuario ya está en uso')
         setIsLoading(false)
         return
       }
 
-      // Guardar username
+      // Guardar username con clave específica por contrato
       const userData = {
         username: username.toLowerCase(),
         walletAddress,
@@ -114,11 +119,11 @@ export function UsernameSetupDialog({ isOpen, onClose, onUsernameSet }: Username
         createdAt: new Date().toISOString()
       }
 
-      localStorage.setItem('la-kiniela-user', JSON.stringify(userData))
+      localStorage.setItem(userKey, JSON.stringify(userData))
       
-      // Agregar a lista de usernames existentes
+      // Agregar a lista de usernames existentes específica por contrato
       existingUsernames.push(username.toLowerCase())
-      localStorage.setItem('la-kiniela-usernames', JSON.stringify(existingUsernames))
+      localStorage.setItem(usernamesKey, JSON.stringify(existingUsernames))
 
       onUsernameSet(username)
       onClose()

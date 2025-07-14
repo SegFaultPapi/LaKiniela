@@ -137,6 +137,26 @@ contract PredictionMarketFixed is Ownable, ReentrancyGuard {
         emit MarketResolved(_marketId, _outcome);
     }
 
+    /**
+     * @notice Resuelve un market en caso de emergencia ANTES de que expire
+     * @dev Solo el owner puede usar esta función. Se recomienda solo para casos críticos
+     * @param _marketId ID del market a resolver
+     * @param _outcome Resultado del market (no puede ser UNRESOLVED)
+     */
+    function emergencyResolveMarket(uint256 _marketId, MarketOutcome _outcome) external onlyOwner {
+        Market storage market = markets[_marketId];
+        if (market.resolved) revert MarketAlreadyResolved();
+        if (_outcome == MarketOutcome.UNRESOLVED) revert InvalidOutcome();
+
+        // NOTA: No verificamos block.timestamp < market.endTime
+        // Esto permite resolver markets antes de que expiren en emergencias
+
+        market.outcome = _outcome;
+        market.resolved = true;
+
+        emit MarketResolved(_marketId, _outcome);
+    }
+
     function claimWinnings(uint256 _marketId) external nonReentrant {
         Market storage market = markets[_marketId];
         if (!market.resolved) revert MarketNotResolved();

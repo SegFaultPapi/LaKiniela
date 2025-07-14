@@ -4,9 +4,12 @@ import { PREDICTION_MARKET_SIMPLE_ABI } from './prediction-market-abi'
 
 // ==================== DIRECCIONES DE CONTRATOS ====================
 export const CONTRACTS = {
-  PREDICTION_MARKET: "0xB00614e08530E092121EF0633f9226B2466FFb02" as `0x${string}`, // Nuevo contrato corregido PredictionMarketFixed
+  PREDICTION_MARKET: "0x232f6a25665255267A4E2F74D3358056dACB4C42" as `0x${string}`, // Nuevo contrato con emergencyResolveMarket
   MXNB_TOKEN: "0x82B9e52b26A2954E113F94Ff26647754d5a4247D" as `0x${string}`,
 }
+
+// Dirección del contrato actual para usar en localStorage específico por contrato
+export const CURRENT_CONTRACT_ADDRESS = CONTRACTS.PREDICTION_MARKET
 
 // ==================== INFORMACIÓN DE RED ====================
 export const NETWORK_INFO = {

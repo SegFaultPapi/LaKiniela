@@ -381,6 +381,16 @@ export const PREDICTION_MARKET_SIMPLE_ABI = [
   },
   {
     "inputs": [
+      { "internalType": "uint256", "name": "_marketId", "type": "uint256" },
+      { "internalType": "uint8", "name": "_outcome", "type": "uint8" }
+    ],
+    "name": "emergencyResolveMarket",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
       { "internalType": "address", "name": "newOwner", "type": "address" }
     ],
     "name": "transferOwnership",
