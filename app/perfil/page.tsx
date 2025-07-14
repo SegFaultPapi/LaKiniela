@@ -33,6 +33,33 @@ export default function PerfilPage() {
     refetchBalance()
   }
 
+  // Función para abrir el chat de Chatbase
+  const openChatbaseChat = () => {
+    // Buscar el botón del widget de Chatbase y hacer clic en él
+    const chatbaseButton = document.querySelector('[data-testid="chat-button"]') ||
+                          document.querySelector('.chatbase-button') ||
+                          document.querySelector('[class*="chat-button"]') ||
+                          document.querySelector('button[aria-label*="chat"]') ||
+                          document.querySelector('button[aria-label*="Chat"]')
+    
+    if (chatbaseButton) {
+      (chatbaseButton as HTMLElement).click()
+    } else {
+      // Si no encontramos el botón, intentamos buscar el widget y abrirlo
+      const chatWidget = document.querySelector('[data-testid="chat-widget"]') ||
+                        document.querySelector('.chatbase-widget') ||
+                        document.querySelector('[class*="chat-widget"]') ||
+                        document.querySelector('#chatbase-widget')
+      
+      if (chatWidget) {
+        // Simular clic en el widget para abrirlo
+        (chatWidget as HTMLElement).click()
+      } else {
+        console.log('Chatbase widget no encontrado. Asegúrate de que esté configurado correctamente.')
+      }
+    }
+  }
+
   // Datos de ejemplo para el perfil (en producción vendrían del contrato)
   const posicionesEjemplo: ApuestaUsuario[] = [
     {
@@ -409,6 +436,7 @@ export default function PerfilPage() {
               <Button
                 variant="outline"
                 className="border-primary text-primary hover:bg-primary hover:text-white bg-transparent"
+                onClick={openChatbaseChat}
               >
                 <MessageCircle className="w-4 h-4 mr-2" />
                 Chat con Asistente AI

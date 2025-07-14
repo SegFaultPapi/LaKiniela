@@ -245,7 +245,7 @@ body {
     justify-content: center !important;
     background: var(--rk-colors-modalBackdrop) !important;
     padding: 20px !important;
-    overflow: auto !important;
+    overflow: hidden !important;
   }
 
   /* Contenedor del modal */
@@ -254,11 +254,11 @@ body {
     background: var(--rk-colors-modalBackground) !important;
     border-radius: var(--rk-radii-modal) !important;
     box-shadow: var(--rk-shadows-dialog) !important;
-    max-width: 90vw !important;
-    width: 100% !important;
+    max-width: 400px !important;
+    width: 90vw !important;
     margin: 0 !important;
-    max-height: 95vh !important;
-    min-height: 500px !important;
+    max-height: 80vh !important;
+    min-height: 400px !important;
     overflow: visible !important;
     display: flex !important;
     flex-direction: column !important;
@@ -279,6 +279,7 @@ body {
     padding: 24px !important;
     flex: 1 !important;
     overflow-y: auto !important;
+    overflow-x: hidden !important;
     display: flex !important;
     flex-direction: column !important;
     gap: 16px !important;
@@ -339,13 +340,15 @@ body {
   @media (max-width: 768px) {
     [data-rk] div[role="dialog"] {
       padding: 10px !important;
+      overflow: hidden !important;
     }
     
     [data-rk] div[role="dialog"]>div {
       margin: 0 !important;
       border-radius: var(--rk-radii-modalMobile) !important;
-      max-width: 95vw !important;
-      max-height: 95vh !important;
+      max-width: 400px !important;
+      width: 90vw !important;
+      max-height: 80vh !important;
     }
 
     [data-rk] div[role="dialog"] h1 {

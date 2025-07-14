@@ -391,57 +391,6 @@ export default function InicioPage() {
         </div>
       </section>
 
-      {/* Features Section */}
-      <section className="py-20 bg-white">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl lg:text-4xl font-bold text-foreground mb-4">
-              ¿Por qué elegir La Kiniela?
-            </h2>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Construido sobre Arbitrum con tecnología de vanguardia para una experiencia segura y eficiente
-            </p>
-          </div>
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {caracteristicas.map((caracteristica, index) => (
-              <Card key={index} className="border border-primary/20 hover:shadow-lg transition-shadow">
-                <CardContent className="p-6 text-center">
-                  <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <caracteristica.icon className="w-8 h-8 text-primary" />
-                  </div>
-                  <h3 className="text-lg font-semibold text-foreground mb-2">{caracteristica.titulo}</h3>
-                  <p className="text-muted-foreground">{caracteristica.descripcion}</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* How it works section */}
-      <section id="como-funciona" className="py-20 bg-gradient-to-br from-primary/5 to-background">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl lg:text-4xl font-bold text-foreground mb-4">
-              Cómo funciona La Kiniela
-            </h2>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Comenzar es fácil y rápido. Sigue estos simples pasos para empezar a ganar
-            </p>
-          </div>
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {pasos.map((paso, index) => (
-              <div key={index} className="text-center">
-                <div className="w-16 h-16 bg-primary text-white rounded-full flex items-center justify-center mx-auto mb-4 text-xl font-bold">
-                  {index + 1}
-                </div>
-                <p className="text-foreground font-medium">{paso}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* Markets Section */}
       <section className="py-16">
         <div className="container mx-auto px-4">
@@ -678,6 +627,57 @@ export default function InicioPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Features Section */}
+      <section className="py-20 bg-white">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl lg:text-4xl font-bold text-foreground mb-4">
+              ¿Por qué elegir La Kiniela?
+            </h2>
+            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+              Construido sobre Arbitrum con tecnología de vanguardia para una experiencia segura y eficiente
+            </p>
+          </div>
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+            {caracteristicas.map((caracteristica, index) => (
+              <Card key={index} className="border border-primary/20 hover:shadow-lg transition-shadow">
+                <CardContent className="p-6 text-center">
+                  <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <caracteristica.icon className="w-8 h-8 text-primary" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-foreground mb-2">{caracteristica.titulo}</h3>
+                  <p className="text-muted-foreground">{caracteristica.descripcion}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* How it works section */}
+      <section id="como-funciona" className="py-20 bg-gradient-to-br from-primary/5 to-background">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl lg:text-4xl font-bold text-foreground mb-4">
+              Cómo funciona La Kiniela
+            </h2>
+            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+              Comenzar es fácil y rápido. Sigue estos simples pasos para empezar a ganar
+            </p>
+          </div>
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+            {pasos.map((paso, index) => (
+              <div key={index} className="text-center">
+                <div className="w-16 h-16 bg-primary text-white rounded-full flex items-center justify-center mx-auto mb-4 text-xl font-bold">
+                  {index + 1}
+                </div>
+                <p className="text-foreground font-medium">{paso}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
 
       {/* Dialog para crear market */}
       <Dialog open={createMarketOpen} onOpenChange={setCreateMarketOpen}>
