@@ -7,6 +7,7 @@ import { WalletProvider } from "@/components/wallet-provider"
 import { Navbar } from "@/components/navbar"
 import { ChatbaseWidget } from "@/components/chatbase-widget"
 import { ClientDiagnostics } from "@/components/client-diagnostics"
+import { Toaster } from "@/components/ui/toaster"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -39,6 +40,7 @@ export default function RootLayout({
           <main className="min-h-screen bg-background">{children}</main>
           <ChatbaseWidget chatbotId="9yg5No15K56pB7G1AbONq" />
           <ClientDiagnostics />
+          <Toaster />
         </WalletProvider>
       </body>
     </html>

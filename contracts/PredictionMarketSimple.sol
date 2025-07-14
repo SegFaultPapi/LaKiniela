@@ -6,10 +6,10 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 /**
- * @title PredictionMarketSimple
- * @dev Versión simplificada para garantizar deploy exitoso en Remix
+ * @title PredictionMarketFixed
+ * @dev Versión CORREGIDA con minimum bet de 1e6 (1 MXNB) en lugar de 1e18
  */
-contract PredictionMarketSimple is Ownable, ReentrancyGuard {
+contract PredictionMarketFixed is Ownable, ReentrancyGuard {
     enum MarketOutcome {
         UNRESOLVED,
         OPTION_A,
@@ -106,7 +106,7 @@ contract PredictionMarketSimple is Ownable, ReentrancyGuard {
         Market storage market = markets[_marketId];
         if (block.timestamp >= market.endTime) revert MarketTradingEnded();
         if (market.resolved) revert MarketAlreadyResolved();
-        if (_amount < 1e18) revert MinimumBetRequired();
+        if (_amount < 1e6) revert MinimumBetRequired(); // CORREGIDO: 1e6 para tokens de 6 decimales (1 MXNB mínimo)
 
         // Verificar balance y allowance ANTES de transferir
         if (bettingToken.balanceOf(msg.sender) < _amount) revert InsufficientBalance();

@@ -29,18 +29,23 @@ import {
   DollarSign,
   Wrench
 } from 'lucide-react'
-import { usePredictionMarketV2 } from '@/hooks/use-prediction-market-v2'
+import { usePredictionMarketV2 } from "@/hooks/use-prediction-market-v2"
+import { 
+  isCorrectNetwork, 
+  getNetworkSwitchMessage, 
+  getExplorerLink,
+  formatMXNB,
+  handleContractError,
+  MIN_BET_AMOUNT,
+  MarketOutcome,
+  CONTRACTS
+} from "@/lib/contracts-config"
 import { useToast } from '@/hooks/use-toast'
 import { 
-  MarketOutcome, 
   formatEndTime, 
-  getExplorerLink, 
-  isCorrectNetwork, 
-  getNetworkSwitchMessage,
   NETWORK_INFO,
   UI_CONSTANTS,
-  CONTRACTS
-} from '@/lib/web3-config'
+} from '@/lib/contracts-config'
 import { ContractDiagnostics } from '@/components/contract-diagnostics'
 
 export function PredictionMarketExample() {
@@ -94,11 +99,7 @@ export function PredictionMarketExample() {
     resolveMarket,
     // Función optimizada
     buySharesWithAllowance,
-    // Helpers
-    formatMXNB,
-    handleContractError,
-    MIN_BET_AMOUNT,
-    MarketOutcome: MarketOutcomeEnum
+    // Ya importadas directamente: formatMXNB, handleContractError, MIN_BET_AMOUNT, MarketOutcome
   } = usePredictionMarketV2()
 
   // Verificar red correcta
@@ -142,20 +143,9 @@ export function PredictionMarketExample() {
       const hash = await approveInfiniteMXNB()
       if (hash) {
         toast({
-          title: "Aprobación Enviada",
-          description: (
-            <div className="flex items-center gap-2">
-              <span>TX: {hash.slice(0, 10)}...</span>
-              <a 
-                href={getExplorerLink(hash)} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-blue-500 hover:underline"
-              >
-                <ExternalLink className="h-3 w-3" />
-              </a>
-            </div>
-          ),
+          title: "⏳ Aprobación Enviada",
+          description: `La aprobación está siendo procesada. TX: ${hash.slice(0, 10)}... - Ver en: https://sepolia.arbiscan.io/tx/${hash}`,
+          duration: 6000,
         })
         
         // Refrescar allowance después de unos segundos
@@ -165,7 +155,7 @@ export function PredictionMarketExample() {
       }
     } catch (error) {
       toast({
-        title: "Error en Aprobación",
+        title: "❌ Error en Aprobación",
         description: error instanceof Error ? error.message : "Error desconocido",
         variant: "destructive"
       })
@@ -205,20 +195,9 @@ export function PredictionMarketExample() {
       
       if (hash) {
         toast({
-          title: "Mercado Creado",
-          description: (
-            <div className="flex items-center gap-2">
-              <span>TX: {hash.slice(0, 10)}...</span>
-              <a 
-                href={getExplorerLink(hash)} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-blue-500 hover:underline"
-              >
-                <ExternalLink className="h-3 w-3" />
-              </a>
-            </div>
-          ),
+          title: "🚀 Market Creado",
+          description: `El market ha sido enviado a la blockchain. TX: ${hash.slice(0, 10)}... - Ver en: https://sepolia.arbiscan.io/tx/${hash}`,
+          duration: 6000,
         })
         
         // Limpiar formulario y refrescar
@@ -235,7 +214,7 @@ export function PredictionMarketExample() {
       }
     } catch (error) {
       toast({
-        title: "Error Creando Mercado",
+        title: "❌ Error Creando Market",
         description: error instanceof Error ? error.message : "Error desconocido",
         variant: "destructive"
       })
@@ -310,28 +289,12 @@ export function PredictionMarketExample() {
       
       if (result.success) {
         toast({
-          title: "Éxito",
-          description: result.step,
+          title: "💰 Participación Enviada",
+          description: `Tu apuesta en ${isOptionA ? 'Opción A (Sí)' : 'Opción B (No)'} está siendo procesada.${result.hash ? ` TX: ${result.hash.slice(0, 10)}... - Ver en: https://sepolia.arbiscan.io/tx/${result.hash}` : ''}`,
+          duration: 6000,
         })
         
         if (result.hash) {
-          toast({
-            title: "Transacción Enviada",
-            description: (
-              <div className="flex items-center gap-2">
-                <span>TX: {result.hash.slice(0, 10)}...</span>
-                <a 
-                  href={getExplorerLink(result.hash)} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="text-blue-500 hover:underline"
-                >
-                  <ExternalLink className="h-3 w-3" />
-                </a>
-              </div>
-            ),
-          })
-          
           // Refrescar datos después de la transacción
           setTimeout(() => {
             loadMarketInfo(selectedMarketId)
@@ -340,14 +303,14 @@ export function PredictionMarketExample() {
         }
       } else {
         toast({
-          title: "Error",
+          title: "❌ Error en Participación",
           description: result.step,
           variant: "destructive"
         })
       }
     } catch (error) {
       toast({
-        title: "Error en Compra",
+        title: "❌ Error en Compra",
         description: error instanceof Error ? error.message : "Error desconocido",
         variant: "destructive"
       })
@@ -415,11 +378,11 @@ export function PredictionMarketExample() {
   // Función para determinar el color del outcome
   const getOutcomeColor = (outcome: MarketOutcome) => {
     switch (outcome) {
-      case MarketOutcomeEnum.OPTION_A:
+      case MarketOutcome.OPTION_A:
         return 'bg-green-500'
-      case MarketOutcomeEnum.OPTION_B:
+      case MarketOutcome.OPTION_B:
         return 'bg-blue-500'
-      case MarketOutcomeEnum.CANCELLED:
+      case MarketOutcome.CANCELLED:
         return 'bg-red-500'
       default:
         return 'bg-gray-500'
@@ -428,11 +391,11 @@ export function PredictionMarketExample() {
 
   const getOutcomeText = (outcome: MarketOutcome) => {
     switch (outcome) {
-      case MarketOutcomeEnum.OPTION_A:
+      case MarketOutcome.OPTION_A:
         return 'Opción A Ganó'
-      case MarketOutcomeEnum.OPTION_B:
+      case MarketOutcome.OPTION_B:
         return 'Opción B Ganó'
-      case MarketOutcomeEnum.CANCELLED:
+      case MarketOutcome.CANCELLED:
         return 'Cancelado'
       default:
         return 'Sin Resolver'

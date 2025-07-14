@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -20,99 +20,163 @@ import {
   Copy,
   RefreshCw,
   MessageCircle,
+  Calendar,
+  DollarSign,
+  ImageIcon,
 } from "lucide-react"
-import { usePredictionMarket } from "@/hooks/use-prediction-market"
+import { usePredictionMarketV2 } from "@/hooks/use-prediction-market-v2"
 import { ConnectButton } from "@rainbow-me/rainbowkit"
+import { MarketImageStorage } from "@/lib/market-images"
+import { formatMXNB, MarketOutcome } from "@/lib/contracts-config"
 import type { ApuestaUsuario } from "@/lib/types"
+import Image from "next/image"
+
+interface UserPosition {
+  id: string
+  marketId: number
+  marketName: string
+  marketQuestion: string
+  marketImage?: string
+  optionAShares: bigint
+  optionBShares: bigint
+  optionAName: string
+  optionBName: string
+  marketResolved: boolean
+  marketOutcome: MarketOutcome
+  endTime: number
+  estado: "activo" | "finalizado" | "cancelado"
+  fechaParticipacion: string
+  totalInvested: number
+  potentialWinnings: number
+}
 
 export default function PerfilPage() {
-  const { isConnected, address, balance, userBets, refetchBalance, refetchUserBets } = usePredictionMarket()
+  const { 
+    isConnected, 
+    address, 
+    balance, 
+    markets, 
+    loadingMarkets,
+    getUserShares,
+    getMarketInfo,
+    refetchBalance,
+    loadAllMarkets 
+  } = usePredictionMarketV2()
+  
   const [copiedAddress, setCopiedAddress] = useState(false)
+  const [userPositions, setUserPositions] = useState<UserPosition[]>([])
+  const [loadingPositions, setLoadingPositions] = useState(false)
+
+  // Función para cargar todas las posiciones del usuario
+  const loadUserPositions = useCallback(async () => {
+    if (!address || !isConnected || markets.length === 0) {
+      setUserPositions([])
+      return
+    }
+
+    setLoadingPositions(true)
+    
+    try {
+      const positions: UserPosition[] = []
+      
+      // Obtener shares del usuario para cada market
+      for (const market of markets) {
+        const userShares = await getUserShares(market.id, address)
+        
+        if (userShares && (userShares.optionAShares > 0 || userShares.optionBShares > 0)) {
+          // Obtener imagen del market
+          const marketImage = MarketImageStorage.getImage(market.id, "0xB00614e08530E092121EF0633f9226B2466FFb02")
+          
+          // Determinar estado del market
+          let estado: "activo" | "finalizado" | "cancelado";
+          if (market.outcome === MarketOutcome.CANCELLED) {
+            estado = "cancelado";
+          } else if (market.resolved) {
+            estado = "finalizado";
+          } else if (Number(market.endTime) * 1000 > Date.now()) {
+            estado = "activo";
+          } else {
+            estado = "finalizado";
+          }
+          
+          // Calcular inversión total estimada (usando shares como proxy)
+          const totalShares = Number(formatMXNB(userShares.optionAShares + userShares.optionBShares))
+          
+          // Calcular ganancias potenciales
+          let potentialWinnings = 0
+          if (market.resolved) {
+            if (market.outcome === MarketOutcome.OPTION_A && userShares.optionAShares > 0) {
+              potentialWinnings = Number(formatMXNB(userShares.optionAShares))
+            } else if (market.outcome === MarketOutcome.OPTION_B && userShares.optionBShares > 0) {
+              potentialWinnings = Number(formatMXNB(userShares.optionBShares))
+            }
+          } else {
+            // Si no está resuelto, estimar basado en shares
+            potentialWinnings = totalShares * 1.5 // Estimación conservadora
+          }
+          
+          const position: UserPosition = {
+            id: `${market.id}-${address}`,
+            marketId: market.id,
+            marketName: market.question,
+            marketQuestion: market.question,
+            marketImage: marketImage || undefined,
+            optionAShares: userShares.optionAShares,
+            optionBShares: userShares.optionBShares,
+            optionAName: market.optionA,
+            optionBName: market.optionB,
+            marketResolved: market.resolved,
+            marketOutcome: market.outcome,
+            endTime: market.endTime,
+            estado,
+            fechaParticipacion: new Date().toISOString(), // Aproximación
+            totalInvested: totalShares,
+            potentialWinnings
+          }
+          
+          positions.push(position)
+        }
+      }
+      
+      setUserPositions(positions)
+    } catch (error) {
+      console.error("Error cargando posiciones del usuario:", error)
+      setUserPositions([])
+    } finally {
+      setLoadingPositions(false)
+    }
+  }, [address, isConnected, markets, getUserShares])
+
+  // Cargar posiciones cuando cambie la data de markets
+  useEffect(() => {
+    if (markets.length > 0) {
+      loadUserPositions()
+    }
+  }, [markets, loadUserPositions])
 
   const handleRefreshBalance = () => {
     refetchBalance()
   }
 
-  // Función para abrir el chat de Chatbase
-  const openChatbaseChat = () => {
-    // Buscar el botón del widget de Chatbase y hacer clic en él
-    const chatbaseButton = document.querySelector('[data-testid="chat-button"]') ||
-                          document.querySelector('.chatbase-button') ||
-                          document.querySelector('[class*="chat-button"]') ||
-                          document.querySelector('button[aria-label*="chat"]') ||
-                          document.querySelector('button[aria-label*="Chat"]')
-    
-    if (chatbaseButton) {
-      (chatbaseButton as HTMLElement).click()
-    } else {
-      // Si no encontramos el botón, intentamos buscar el widget y abrirlo
-      const chatWidget = document.querySelector('[data-testid="chat-widget"]') ||
-                        document.querySelector('.chatbase-widget') ||
-                        document.querySelector('[class*="chat-widget"]') ||
-                        document.querySelector('#chatbase-widget')
-      
-      if (chatWidget) {
-        // Simular clic en el widget para abrirlo
-        (chatWidget as HTMLElement).click()
-      } else {
-        console.log('Chatbase widget no encontrado. Asegúrate de que esté configurado correctamente.')
-      }
-    }
+  const handleRefreshData = () => {
+    loadAllMarkets()
+    loadUserPositions()
   }
 
-  // Datos de ejemplo para el perfil (en producción vendrían del contrato)
-  const posicionesEjemplo: ApuestaUsuario[] = [
-    {
-      id: "1",
-      eventoId: "1",
-      eventoNombre: "Bitcoin $120K Septiembre 2024",
-      opcionId: "si",
-      opcionNombre: "Sí",
-      cantidad: 100,
-      cuota: 2.3,
-      estado: "pendiente",
-      fechaApuesta: "2024-01-15",
-      gananciasPotenciales: 230,
-    },
-    {
-      id: "2",
-      eventoId: "2",
-      eventoNombre: "Copa América 2024 - Argentina Campeón",
-      opcionId: "si",
-      opcionNombre: "Sí",
-      cantidad: 50,
-      cuota: 1.8,
-      estado: "ganada",
-      fechaApuesta: "2024-01-10",
-      gananciasPotenciales: 90,
-    },
-    {
-      id: "3",
-      eventoId: "3",
-      eventoNombre: "Elecciones México 2024",
-      opcionId: "no",
-      opcionNombre: "No",
-      cantidad: 75,
-      cuota: 2.8,
-      estado: "perdida",
-      fechaApuesta: "2024-01-05",
-      gananciasPotenciales: 210,
-    },
-  ]
+  const posicionesAbiertas = userPositions.filter((pos) => pos.estado === "activo")
+  const posicionesCerradas = userPositions.filter((pos) => pos.estado !== "activo")
 
-  // Usar posiciones del contrato si están disponibles, sino usar ejemplos
-  const posicionesDisponibles = userBets.length > 0 ? userBets : posicionesEjemplo
-
-  const posicionesAbiertas = posicionesDisponibles.filter((pos) => pos.estado === "pendiente")
-  const posicionesCerradas = posicionesDisponibles.filter((pos) => pos.estado !== "pendiente")
-
-  const totalInvertido = posicionesDisponibles.reduce((sum, pos) => sum + pos.cantidad, 0)
-  const totalGanado = posicionesDisponibles
-    .filter((pos) => pos.estado === "ganada")
-    .reduce((sum, pos) => sum + pos.gananciasPotenciales, 0)
-  const totalPerdido = posicionesDisponibles
-    .filter((pos) => pos.estado === "perdida")
-    .reduce((sum, pos) => sum + pos.cantidad, 0)
+  const totalInvertido = userPositions.reduce((sum, pos) => sum + pos.totalInvested, 0)
+  const totalGanado = userPositions
+    .filter((pos) => pos.estado === "finalizado" && pos.marketResolved)
+    .reduce((sum, pos) => {
+      if (pos.marketOutcome === MarketOutcome.OPTION_A && pos.optionAShares > 0) {
+        return sum + Number(formatMXNB(pos.optionAShares))
+      } else if (pos.marketOutcome === MarketOutcome.OPTION_B && pos.optionBShares > 0) {
+        return sum + Number(formatMXNB(pos.optionBShares))
+      }
+      return sum
+    }, 0)
 
   const copiarDireccion = async () => {
     if (address) {
@@ -122,43 +186,47 @@ export default function PerfilPage() {
     }
   }
 
-  const formatearDireccion = (direccion: string) => {
-    return `${direccion.slice(0, 6)}...${direccion.slice(-4)}`
-  }
-
-  const getEstadoBadge = (estado: string) => {
-    switch (estado) {
-      case "pendiente":
-        return (
-          <Badge variant="outline" className="text-yellow-600 border-yellow-600 bg-yellow-50">
-            Pendiente
-          </Badge>
-        )
-      case "ganada":
-        return (
-          <Badge variant="outline" className="text-green-600 border-green-600 bg-green-50">
-            Ganada
-          </Badge>
-        )
-      case "perdida":
-        return (
-          <Badge variant="outline" className="text-red-600 border-red-600 bg-red-50">
-            Perdida
-          </Badge>
-        )
-      default:
-        return <Badge variant="outline">Desconocido</Badge>
+  const openChatbaseChat = () => {
+    const chatbaseWidget = (window as any).chatbaseConfig
+    if (chatbaseWidget) {
+      chatbaseWidget.openChat?.()
     }
   }
 
-  const getOpcionBadge = (opcionId: string) => {
-    return opcionId === "si" ? (
-      <Badge variant="outline" className="text-green-700 border-green-600 bg-green-100">
-        Sí
-      </Badge>
-    ) : (
-      <Badge variant="outline" className="text-red-700 border-red-600 bg-red-100">
+  const getOpcionBadge = (opcion: "si" | "no" | string) => {
+    if (opcion === "si" || opcion === "option_a") {
+      return (
+        <Badge className="bg-green-100 text-green-800 border-green-200">
+          <CheckCircle className="w-3 h-3 mr-1" />
+          Sí
+        </Badge>
+      )
+    }
+    return (
+      <Badge className="bg-red-100 text-red-800 border-red-200">
+        <XCircle className="w-3 h-3 mr-1" />
         No
+      </Badge>
+    )
+  }
+
+  const getEstadoBadge = (estado: string) => {
+    const badgeConfig = {
+      pendiente: { className: "bg-yellow-100 text-yellow-800 border-yellow-200", icon: Clock, text: "Pendiente" },
+      activo: { className: "bg-blue-100 text-blue-800 border-blue-200", icon: Clock, text: "Activo" },
+      ganada: { className: "bg-green-100 text-green-800 border-green-200", icon: CheckCircle, text: "Ganada" },
+      perdida: { className: "bg-red-100 text-red-800 border-red-200", icon: XCircle, text: "Perdida" },
+      finalizado: { className: "bg-gray-100 text-gray-800 border-gray-200", icon: CheckCircle, text: "Finalizado" },
+      cancelado: { className: "bg-red-100 text-red-800 border-red-200", icon: XCircle, text: "Cancelado" },
+    }
+
+    const config = badgeConfig[estado as keyof typeof badgeConfig] || badgeConfig.pendiente
+    const Icon = config.icon
+
+    return (
+      <Badge className={config.className}>
+        <Icon className="w-3 h-3 mr-1" />
+        {config.text}
       </Badge>
     )
   }
@@ -191,14 +259,24 @@ export default function PerfilPage() {
       <div className="container mx-auto px-4 py-8">
         {/* Header del Perfil */}
         <div className="mb-8">
-          <div className="flex items-center space-x-4 mb-6">
-            <div className="bg-primary/10 p-4 rounded-full border border-primary/20">
-              <User className="w-8 h-8 text-primary" />
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center space-x-4">
+              <div className="bg-primary/10 p-4 rounded-full border border-primary/20">
+                <User className="w-8 h-8 text-primary" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold text-foreground">Mi Perfil</h1>
+                <p className="text-muted-foreground">Gestiona tu cuenta y revisa tu historial de posiciones</p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-3xl font-bold text-foreground">Mi Perfil</h1>
-              <p className="text-muted-foreground">Gestiona tu cuenta y revisa tu historial de posiciones</p>
-            </div>
+            <Button 
+              onClick={handleRefreshData}
+              variant="outline"
+              disabled={loadingMarkets || loadingPositions}
+            >
+              <RefreshCw className={`w-4 h-4 mr-2 ${(loadingMarkets || loadingPositions) ? 'animate-spin' : ''}`} />
+              Actualizar
+            </Button>
           </div>
 
           {/* Información de la Wallet */}
@@ -209,46 +287,39 @@ export default function PerfilPage() {
                 <span>Información de Wallet</span>
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-sm font-medium text-card-foreground/70">Dirección</Label>
-                  <div className="flex items-center space-x-2 mt-1">
-                    <code className="text-sm bg-background px-2 py-1 rounded border text-foreground">
-                      {address ? formatearDireccion(address) : "No conectado"}
+                  <div className="text-sm text-card-foreground/70 mb-1">Dirección</div>
+                  <div className="flex items-center space-x-2">
+                    <code className="text-sm bg-gray-100 px-2 py-1 rounded font-mono text-card-foreground">
+                      {address ? `${address.slice(0, 6)}...${address.slice(-4)}` : 'No conectado'}
                     </code>
-                    {address && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={copiarDireccion}
-                        className="h-8 w-8 p-0 text-card-foreground hover:text-primary"
-                      >
-                        {copiedAddress ? <CheckCircle className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                      </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={copiarDireccion}
+                      className="p-1 h-auto"
+                    >
+                      <Copy className="w-4 h-4" />
+                    </Button>
+                    {copiedAddress && (
+                      <span className="text-xs text-green-600">¡Copiado!</span>
                     )}
                   </div>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-card-foreground/70">Balance MXNB</Label>
-                  <div className="flex items-center space-x-2 mt-1">
-                    <span className="text-lg font-bold text-card-foreground">{balance}</span>
+                  <div className="text-sm text-card-foreground/70 mb-1">Balance MXNB</div>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-lg font-semibold text-card-foreground">{balance} MXNB</span>
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={handleRefreshBalance}
-                      className="h-8 w-8 p-0 text-card-foreground hover:text-primary"
+                      className="p-1 h-auto"
                     >
                       <RefreshCw className="w-4 h-4" />
                     </Button>
-                  </div>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium text-card-foreground/70">Red</Label>
-                  <div className="mt-1">
-                    <Badge variant="outline" className="text-blue-600 border-blue-600 bg-blue-50">
-                      Arbitrum
-                    </Badge>
                   </div>
                 </div>
               </div>
@@ -256,33 +327,36 @@ export default function PerfilPage() {
           </Card>
         </div>
 
-        {/* Estadísticas Generales */}
+        {/* Estadísticas del Usuario */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <Card className="border border-primary/20 bg-white shadow-md">
             <CardContent className="p-6 text-center">
               <TrendingUp className="w-8 h-8 text-primary mx-auto mb-2" />
-              <div className="text-2xl font-bold text-card-foreground">{totalInvertido.toFixed(2)}</div>
+              <div className="text-2xl font-bold text-card-foreground">{totalInvertido.toFixed(2)} MXNB</div>
               <div className="text-sm text-card-foreground/70">Total Invertido</div>
             </CardContent>
           </Card>
+
           <Card className="border border-primary/20 bg-white shadow-md">
             <CardContent className="p-6 text-center">
-              <CheckCircle className="w-8 h-8 text-green-600 mx-auto mb-2" />
-              <div className="text-2xl font-bold text-card-foreground">{totalGanado.toFixed(2)}</div>
+              <TrendingUp className="w-8 h-8 text-green-600 mx-auto mb-2" />
+              <div className="text-2xl font-bold text-green-600">{totalGanado.toFixed(2)} MXNB</div>
               <div className="text-sm text-card-foreground/70">Total Ganado</div>
             </CardContent>
           </Card>
+
           <Card className="border border-primary/20 bg-white shadow-md">
             <CardContent className="p-6 text-center">
-              <XCircle className="w-8 h-8 text-red-600 mx-auto mb-2" />
-              <div className="text-2xl font-bold text-card-foreground">{totalPerdido.toFixed(2)}</div>
-              <div className="text-sm text-card-foreground/70">Total Perdido</div>
+              <Clock className="w-8 h-8 text-blue-600 mx-auto mb-2" />
+              <div className="text-2xl font-bold text-card-foreground">{posicionesAbiertas.length}</div>
+              <div className="text-sm text-card-foreground/70">Posiciones Activas</div>
             </CardContent>
           </Card>
+
           <Card className="border border-primary/20 bg-white shadow-md">
             <CardContent className="p-6 text-center">
               <TrendingDown className="w-8 h-8 text-primary mx-auto mb-2" />
-              <div className="text-2xl font-bold text-card-foreground">{posicionesDisponibles.length}</div>
+              <div className="text-2xl font-bold text-card-foreground">{userPositions.length}</div>
               <div className="text-sm text-card-foreground/70">Total Posiciones</div>
             </CardContent>
           </Card>
@@ -308,42 +382,93 @@ export default function PerfilPage() {
               </TabsList>
 
               <TabsContent value="abiertas" className="mt-6">
-                {posicionesAbiertas.length === 0 ? (
+                {loadingPositions ? (
+                  <div className="text-center py-8">
+                    <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
+                    <p className="text-muted-foreground">Cargando posiciones...</p>
+                  </div>
+                ) : posicionesAbiertas.length === 0 ? (
                   <Alert className="border-blue-200 bg-blue-50">
                     <Clock className="h-4 w-4" />
                     <AlertDescription>No tienes posiciones abiertas actualmente.</AlertDescription>
                   </Alert>
                 ) : (
-                  <div className="space-y-4">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {posicionesAbiertas.map((posicion) => (
-                      <Card key={posicion.id} className="border border-primary/10 bg-background">
-                        <CardContent className="p-4">
-                          <div className="flex justify-between items-start mb-3">
-                            <div className="flex-1">
-                              <h4 className="font-semibold text-foreground mb-1">{posicion.eventoNombre}</h4>
-                              <div className="flex items-center space-x-2 mb-2">
-                                {getOpcionBadge(posicion.opcionId)}
-                                {getEstadoBadge(posicion.estado)}
+                      <Card key={posicion.id} className="border border-primary/10 bg-gradient-to-br from-white to-primary/5 shadow-md hover:shadow-lg transition-shadow">
+                        <CardContent className="p-0">
+                          {/* Header con imagen */}
+                          <div className="relative h-32 bg-gradient-to-br from-primary/10 to-primary/20 rounded-t-lg overflow-hidden">
+                            {posicion.marketImage ? (
+                              <Image
+                                src={posicion.marketImage}
+                                alt={posicion.marketName}
+                                fill
+                                className="object-cover"
+                                onError={(e) => {
+                                  const target = e.currentTarget;
+                                  target.style.display = 'none';
+                                }}
+                              />
+                            ) : (
+                              <div className="absolute inset-0 flex items-center justify-center">
+                                <ImageIcon className="w-12 h-12 text-primary/40" />
                               </div>
+                            )}
+                            <div className="absolute top-3 right-3">
+                              {getEstadoBadge(posicion.estado)}
                             </div>
                           </div>
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                            <div>
-                              <span className="text-foreground/70">Cantidad:</span>
-                              <div className="font-medium text-foreground">{posicion.cantidad} MXNB</div>
+                          
+                          {/* Contenido */}
+                          <div className="p-4">
+                            <h4 className="font-semibold text-foreground mb-2 line-clamp-2">{posicion.marketQuestion}</h4>
+                            
+                            {/* Posiciones del usuario */}
+                            <div className="space-y-2 mb-4">
+                              {Number(formatMXNB(posicion.optionAShares)) > 0 && (
+                                <div className="flex items-center justify-between bg-green-50 p-2 rounded-lg">
+                                  <div className="flex items-center space-x-2">
+                                    <Badge className="bg-green-100 text-green-800 border-green-200">
+                                      {posicion.optionAName}
+                                    </Badge>
+                                  </div>
+                                  <span className="font-medium text-green-700">
+                                    {formatMXNB(posicion.optionAShares)} MXNB
+                                  </span>
+                                </div>
+                              )}
+                              {Number(formatMXNB(posicion.optionBShares)) > 0 && (
+                                <div className="flex items-center justify-between bg-red-50 p-2 rounded-lg">
+                                  <div className="flex items-center space-x-2">
+                                    <Badge className="bg-red-100 text-red-800 border-red-200">
+                                      {posicion.optionBName}
+                                    </Badge>
+                                  </div>
+                                  <span className="font-medium text-red-700">
+                                    {formatMXNB(posicion.optionBShares)} MXNB
+                                  </span>
+                                </div>
+                              )}
                             </div>
-                            <div>
-                              <span className="text-foreground/70">Cuota:</span>
-                              <div className="font-medium text-foreground">{posicion.cuota}x</div>
-                            </div>
-                            <div>
-                              <span className="text-foreground/70">Ganancia Potencial:</span>
-                              <div className="font-medium text-green-600">{posicion.gananciasPotenciales} MXNB</div>
-                            </div>
-                            <div>
-                              <span className="text-foreground/70">Fecha:</span>
-                              <div className="font-medium text-foreground">
-                                {new Date(posicion.fechaApuesta).toLocaleDateString("es-ES")}
+
+                            {/* Información adicional */}
+                            <div className="grid grid-cols-2 gap-4 text-sm">
+                              <div>
+                                <span className="text-foreground/70 flex items-center">
+                                  <DollarSign className="w-3 h-3 mr-1" />
+                                  Total Invertido:
+                                </span>
+                                <div className="font-medium text-foreground">{posicion.totalInvested.toFixed(2)} MXNB</div>
+                              </div>
+                              <div>
+                                <span className="text-foreground/70 flex items-center">
+                                  <Calendar className="w-3 h-3 mr-1" />
+                                  Fin:
+                                </span>
+                                <div className="font-medium text-foreground">
+                                  {new Date(posicion.endTime * 1000).toLocaleDateString("es-ES")}
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -355,63 +480,118 @@ export default function PerfilPage() {
               </TabsContent>
 
               <TabsContent value="cerradas" className="mt-6">
-                {posicionesCerradas.length === 0 ? (
+                {loadingPositions ? (
+                  <div className="text-center py-8">
+                    <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
+                    <p className="text-muted-foreground">Cargando posiciones...</p>
+                  </div>
+                ) : posicionesCerradas.length === 0 ? (
                   <Alert className="border-blue-200 bg-blue-50">
                     <Clock className="h-4 w-4" />
                     <AlertDescription>No tienes posiciones cerradas aún.</AlertDescription>
                   </Alert>
                 ) : (
-                  <div className="space-y-4">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {posicionesCerradas.map((posicion) => (
-                      <Card key={posicion.id} className="border border-primary/10 bg-background">
-                        <CardContent className="p-4">
-                          <div className="flex justify-between items-start mb-3">
-                            <div className="flex-1">
-                              <h4 className="font-semibold text-foreground mb-1">{posicion.eventoNombre}</h4>
-                              <div className="flex items-center space-x-2 mb-2">
-                                {getOpcionBadge(posicion.opcionId)}
-                                {getEstadoBadge(posicion.estado)}
+                      <Card key={posicion.id} className="border border-primary/10 bg-gradient-to-br from-white to-gray-50 shadow-md">
+                        <CardContent className="p-0">
+                          {/* Header con imagen */}
+                          <div className="relative h-32 bg-gradient-to-br from-gray-100 to-gray-200 rounded-t-lg overflow-hidden">
+                            {posicion.marketImage ? (
+                              <Image
+                                src={posicion.marketImage}
+                                alt={posicion.marketName}
+                                fill
+                                className="object-cover opacity-75"
+                                onError={(e) => {
+                                  const target = e.currentTarget;
+                                  target.style.display = 'none';
+                                }}
+                              />
+                            ) : (
+                              <div className="absolute inset-0 flex items-center justify-center">
+                                <ImageIcon className="w-12 h-12 text-gray-400" />
                               </div>
+                            )}
+                            <div className="absolute top-3 right-3">
+                              {getEstadoBadge(posicion.estado)}
                             </div>
                           </div>
-                          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
-                            <div>
-                              <span className="text-foreground/70">Cantidad:</span>
-                              <div className="font-medium text-foreground">{posicion.cantidad} MXNB</div>
-                            </div>
-                            <div>
-                              <span className="text-foreground/70">Cuota:</span>
-                              <div className="font-medium text-foreground">{posicion.cuota}x</div>
-                            </div>
-                            <div>
-                              <span className="text-foreground/70">
-                                {posicion.estado === "ganada" ? "Ganancia:" : "Pérdida:"}
-                              </span>
-                              <div
-                                className={`font-medium ${posicion.estado === "ganada" ? "text-green-600" : "text-red-600"
-                                  }`}
-                              >
-                                {posicion.estado === "ganada"
-                                  ? `+${posicion.gananciasPotenciales}`
-                                  : `-${posicion.cantidad}`}{" "}
-                                MXNB
+                          
+                          {/* Contenido */}
+                          <div className="p-4">
+                            <h4 className="font-semibold text-foreground mb-2 line-clamp-2">{posicion.marketQuestion}</h4>
+                            
+                            {/* Resultado */}
+                            {posicion.marketResolved && (
+                              <div className="mb-4">
+                                {posicion.marketOutcome === MarketOutcome.OPTION_A ? (
+                                  <Badge className="bg-green-100 text-green-800 border-green-200">
+                                    Ganó: {posicion.optionAName}
+                                  </Badge>
+                                ) : posicion.marketOutcome === MarketOutcome.OPTION_B ? (
+                                  <Badge className="bg-red-100 text-red-800 border-red-200">
+                                    Ganó: {posicion.optionBName}
+                                  </Badge>
+                                ) : (
+                                  <Badge className="bg-gray-100 text-gray-800 border-gray-200">
+                                    Cancelado
+                                  </Badge>
+                                )}
                               </div>
+                            )}
+
+                            {/* Posiciones del usuario */}
+                            <div className="space-y-2 mb-4">
+                              {Number(formatMXNB(posicion.optionAShares)) > 0 && (
+                                <div className="flex items-center justify-between bg-green-50 p-2 rounded-lg">
+                                  <div className="flex items-center space-x-2">
+                                    <Badge className="bg-green-100 text-green-800 border-green-200">
+                                      {posicion.optionAName}
+                                    </Badge>
+                                    {posicion.marketResolved && posicion.marketOutcome === MarketOutcome.OPTION_A && (
+                                      <CheckCircle className="w-4 h-4 text-green-600" />
+                                    )}
+                                  </div>
+                                  <span className="font-medium text-green-700">
+                                    {formatMXNB(posicion.optionAShares)} MXNB
+                                  </span>
+                                </div>
+                              )}
+                              {Number(formatMXNB(posicion.optionBShares)) > 0 && (
+                                <div className="flex items-center justify-between bg-red-50 p-2 rounded-lg">
+                                  <div className="flex items-center space-x-2">
+                                    <Badge className="bg-red-100 text-red-800 border-red-200">
+                                      {posicion.optionBName}
+                                    </Badge>
+                                    {posicion.marketResolved && posicion.marketOutcome === MarketOutcome.OPTION_B && (
+                                      <CheckCircle className="w-4 h-4 text-green-600" />
+                                    )}
+                                  </div>
+                                  <span className="font-medium text-red-700">
+                                    {formatMXNB(posicion.optionBShares)} MXNB
+                                  </span>
+                                </div>
+                              )}
                             </div>
-                            <div>
-                              <span className="text-foreground/70">Fecha:</span>
-                              <div className="font-medium text-foreground">
-                                {new Date(posicion.fechaApuesta).toLocaleDateString("es-ES")}
+
+                            {/* Información adicional */}
+                            <div className="grid grid-cols-2 gap-4 text-sm">
+                              <div>
+                                <span className="text-foreground/70 flex items-center">
+                                  <DollarSign className="w-3 h-3 mr-1" />
+                                  Invertido:
+                                </span>
+                                <div className="font-medium text-foreground">{posicion.totalInvested.toFixed(2)} MXNB</div>
                               </div>
-                            </div>
-                            <div>
-                              <span className="text-foreground/70">ROI:</span>
-                              <div
-                                className={`font-medium ${posicion.estado === "ganada" ? "text-green-600" : "text-red-600"
-                                  }`}
-                              >
-                                {posicion.estado === "ganada"
-                                  ? `+${(((posicion.gananciasPotenciales - posicion.cantidad) / posicion.cantidad) * 100).toFixed(1)}%`
-                                  : "-100%"}
+                              <div>
+                                <span className="text-foreground/70 flex items-center">
+                                  <TrendingUp className="w-3 h-3 mr-1" />
+                                  Resultado:
+                                </span>
+                                <div className={`font-medium ${posicion.potentialWinnings > posicion.totalInvested ? 'text-green-600' : 'text-red-600'}`}>
+                                  {posicion.potentialWinnings > 0 ? `+${posicion.potentialWinnings.toFixed(2)}` : '0.00'} MXNB
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -447,8 +627,4 @@ export default function PerfilPage() {
       </div>
     </div>
   )
-}
-
-function Label({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <label className={className}>{children}</label>
 }

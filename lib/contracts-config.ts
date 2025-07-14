@@ -4,7 +4,7 @@ import { PREDICTION_MARKET_SIMPLE_ABI } from './prediction-market-abi'
 
 // ==================== DIRECCIONES DE CONTRATOS ====================
 export const CONTRACTS = {
-  PREDICTION_MARKET: "0x9Dc4ef29d511A2C37E6F001af9c9868DbCA923F7" as `0x${string}`,
+  PREDICTION_MARKET: "0xB00614e08530E092121EF0633f9226B2466FFb02" as `0x${string}`, // Nuevo contrato corregido PredictionMarketFixed
   MXNB_TOKEN: "0x82B9e52b26A2954E113F94Ff26647754d5a4247D" as `0x${string}`,
 }
 
@@ -80,7 +80,7 @@ export enum MarketOutcome {
 
 // ==================== CONSTANTES ====================
 export const MAX_UINT256 = "115792089237316195423570985008687907853269984665640564039457584007913129639935"
-export const MIN_BET_AMOUNT = "1000000000000000000" // 1 MXNB en wei
+export const MIN_BET_AMOUNT = "1000000" // 1 MXNB en 6 decimales (1 * 10^6) - CORREGIDO para el nuevo contrato
 export const MIN_MARKET_DURATION = 3600 // 1 hora en segundos
 export const MAX_MARKET_DURATION = 2592000 // 30 días en segundos
 
@@ -179,7 +179,7 @@ export const handleContractError = (error: any): string => {
 
 // ==================== CONSTANTES DE UI ====================
 export const UI_CONSTANTS = {
-  MIN_BET_AMOUNT: "1000000000000000000", // 1 MXNB en wei
+  MIN_BET_AMOUNT: "1000000", // 1 MXNB en 6 decimales (1 * 10^6)
   INFINITE_ALLOWANCE: "1000000000000000000000000000", // 1B tokens
   LOADING_DEBOUNCE: 500,
   REFRESH_INTERVAL: 30000,

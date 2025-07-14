@@ -51,6 +51,7 @@ import {
 } from "lucide-react"
 import { usePredictionMarketV2 } from "@/hooks/use-prediction-market-v2"
 import { RegisterMenu } from "@/components/register-menu"
+import { MarketAdminControls } from "@/components/market-admin-controls"
 import { useUser } from "@/hooks/useUser"
 import { UsernameSetupDialog } from "@/components/username-setup-dialog"
 import { useAccount, useDisconnect } from "wagmi"
@@ -60,11 +61,15 @@ import type { EventoApuesta } from "@/lib/types"
 import Link from "next/link"
 import { ImageUpload } from "@/components/image-upload"
 import { ConnectButton } from "@rainbow-me/rainbowkit"
+import { useToast } from "@/hooks/use-toast"
+import { MarketImageStorage } from "@/lib/market-images"
+import { CONTRACTS } from "@/lib/contracts-config"
 
 export default function InicioPage() {
   const { disconnect } = useDisconnect()
   const { disconnect: disconnectPortal } = usePortalWallet()
-  
+  const { toast } = useToast()
+
   const {
     user,
     isConnected,
@@ -99,6 +104,9 @@ export default function InicioPage() {
   } = usePredictionMarketV2()
 
   const { address, chainId } = useAccount()
+
+  // Estados para trackear tipos de transacciones
+  const [currentTxType, setCurrentTxType] = useState<'approval' | 'market_creation' | 'participation' | null>(null)
 
   // Debug: Mostrar información en consola
   useEffect(() => {
@@ -338,22 +346,51 @@ export default function InicioPage() {
   useEffect(() => {
     if (isConfirmed && lastTxHash) {
       console.log("✅ Transacción confirmada:", lastTxHash)
-      setTxError("¡Transacción exitosa!")
       
-      // Cerrar modal después de un breve delay para mostrar el mensaje de éxito
+      // Mostrar notificación específica según el tipo de transacción
+      if (currentTxType === 'approval') {
+        toast({
+          title: "🎉 ¡Aprobación Exitosa!",
+          description: `Los tokens MXNB han sido aprobados. Transacción: ${lastTxHash.slice(0, 10)}... - Ver en: https://sepolia.arbiscan.io/tx/${lastTxHash}`,
+          duration: 8000,
+        })
+      } else if (currentTxType === 'market_creation') {
+        toast({
+          title: "🚀 ¡Market Creado Exitosamente!",
+          description: `Tu nuevo mercado de predicción ha sido creado. Transacción: ${lastTxHash.slice(0, 10)}... - Ver en: https://sepolia.arbiscan.io/tx/${lastTxHash}`,
+          duration: 8000,
+        })
+        // Refrescar la lista de markets
+        setTimeout(() => {
+          refetchMarketCount()
+          loadAllMarkets()
+        }, 2000)
+      } else if (currentTxType === 'participation') {
+        toast({
+          title: "💰 ¡Participación Exitosa!",
+          description: `Tu apuesta ha sido registrada correctamente. ¡Buena suerte! Transacción: ${lastTxHash.slice(0, 10)}... - Ver en: https://sepolia.arbiscan.io/tx/${lastTxHash}`,
+          duration: 8000,
+        })
+        // Refrescar balance y cerrar modal
+        setTimeout(() => {
+          refetchBalance()
+          setDialogOpen(false)
+          setEventoSeleccionado(null)
+          setOpcionSeleccionada("")
+          setCantidadPosicion("")
+        }, 2000)
+      }
+      
+      // Resetear el tipo de transacción y limpiar errores
+      setCurrentTxType(null)
+      setTxError("")
+      
+      // Refrescar datos generales
       setTimeout(() => {
-        setDialogOpen(false)
-        setEventoSeleccionado(null)
-        setOpcionSeleccionada("")
-        setCantidadPosicion("")
-        setTxError("")
-        
-        // Refrescar datos - incluyendo allowance para actualizar hasInfiniteAllowance
         refetchBalance()
-        refetchEvents()
-      }, 2000)
+      }, 3000)
     }
-  }, [isConfirmed, lastTxHash, refetchBalance, refetchEvents])
+  }, [isConfirmed, lastTxHash, currentTxType, toast, refetchBalance, refetchMarketCount, loadAllMarkets])
 
   // Efecto para mostrar el diálogo de username cuando sea necesario
   useEffect(() => {
@@ -366,31 +403,57 @@ export default function InicioPage() {
     }
   }, [isConnected, needsUsernameSetup, showUsernameDialog, showUsernameSetup])
 
+  // Toast de bienvenida cuando el usuario está completamente configurado
+  useEffect(() => {
+    if (isConnected && isUserSetup() && balance && marketCount !== undefined) {
+      const welcomeShown = sessionStorage.getItem('welcome-toast-shown')
+      if (!welcomeShown) {
+        setTimeout(() => {
+          toast({
+            title: "🎉 ¡Bienvenido a La Kiniela!",
+            description: `¡Hola ${getUserDisplay()}! Tu cuenta está lista. Balance: ${balance} MXNB | Markets disponibles: ${marketCount}`,
+            duration: 5000,
+          })
+          sessionStorage.setItem('welcome-toast-shown', 'true')
+        }, 1000)
+      }
+    }
+  }, [isConnected, isUserSetup, balance, marketCount, toast, getUserDisplay])
+
+  // Efecto para limpiar imágenes antiguas al cargar la página
+  useEffect(() => {
+    MarketImageStorage.cleanupOldImages()
+  }, [])
+
   const manejarPosicion = async () => {
     if (!eventoSeleccionado || !opcionSeleccionada || !cantidadPosicion) return
 
     setTxError("")
 
     try {
-      // Ahora intentar participar directamente
+      // Intentar participar directamente
       console.log("🎯 Intentando participar en market")
       console.log("🔍 Estado actual - hasInfiniteAllowance:", hasInfiniteAllowance)
+      
+      // Establecer el tipo de transacción
+      setCurrentTxType('participation')
       
       const buyHash = await placeBet(eventoSeleccionado.id, opcionSeleccionada, cantidadPosicion)
       
       if (buyHash) {
-        setTxError("Transacción enviada, esperando confirmación...")
+        setTxError("⏳ Transacción enviada, esperando confirmación...")
         console.log("🔄 Hash de transacción:", buyHash)
       }
       
     } catch (error: any) {
       console.error("Error en transacción:", error)
+      setCurrentTxType(null) // Resetear en caso de error
       
       // Si el error incluye allowance, mostrar mensaje específico
       if (error.message.includes("allowance") || error.message.includes("aprobar")) {
-        setTxError("Se necesita aprobar allowance de MXNB. La transacción se encargará automáticamente.")
+        setTxError("❌ Se necesita aprobar allowance de MXNB primero. Usa el botón 'Aprobar MXNB'.")
       } else {
-        setTxError(error.message || "Error al procesar la transacción")
+        setTxError("❌ " + (error.message || "Error al procesar la transacción"))
       }
     }
   }
@@ -410,7 +473,7 @@ export default function InicioPage() {
 
   const manejarCrearMarket = async () => {
     if (!nuevoMarket.nombre || !nuevoMarket.pregunta || !nuevoMarket.fechaFin) {
-      setTxError("Por favor completa todos los campos requeridos")
+      setTxError("❌ Por favor completa todos los campos requeridos")
       return
     }
 
@@ -422,6 +485,7 @@ export default function InicioPage() {
 
       // Subir imagen si existe
       if (imagenFile) {
+        setTxError("📸 Subiendo imagen...")
         const formData = new FormData()
         formData.append('image', imagenFile)
 
@@ -439,10 +503,18 @@ export default function InicioPage() {
         imageUrl = uploadResult.imageUrl
       }
 
+      // Obtener el ID que tendrá el nuevo market (marketCount actual)
+      const newMarketId = marketCount || 0
+
       // Calcular duración en horas desde ahora hasta la fecha fin
       const now = new Date()
       const endDate = new Date(nuevoMarket.fechaFin)
       const durationHours = Math.max(1, Math.floor((endDate.getTime() - now.getTime()) / (1000 * 60 * 60)))
+
+      setTxError("⏳ Creando market en blockchain...")
+      
+      // Establecer el tipo de transacción
+      setCurrentTxType('market_creation')
 
       await createMarket(
         nuevoMarket.pregunta,
@@ -450,6 +522,14 @@ export default function InicioPage() {
         "No", // optionB
         durationHours
       )
+
+      // Guardar la imagen asociada al market ID si existe
+      if (imageUrl && typeof newMarketId === 'number') {
+        console.log("💾 Guardando imagen para market ID:", newMarketId, "URL:", imageUrl)
+        MarketImageStorage.saveImage(newMarketId, imageUrl, CONTRACTS.PREDICTION_MARKET)
+      }
+
+      setTxError("⏳ Transacción enviada, esperando confirmación...")
 
       // Limpiar formulario
       setNuevoMarket({
@@ -464,10 +544,10 @@ export default function InicioPage() {
       setImagenFile(null)
 
       setCreateMarketOpen(false)
-      refetchEvents()
     } catch (error: any) {
       console.error("Error al crear market:", error)
-      setTxError(error.message || "Error al crear el market")
+      setCurrentTxType(null) // Resetear en caso de error
+      setTxError("❌ " + (error.message || "Error al crear el market"))
     } finally {
       setIsUploading(false)
     }
@@ -500,10 +580,6 @@ export default function InicioPage() {
                   </div>
                 ) : (
                   <div className="flex flex-col sm:flex-row gap-4">
-                    <Button size="lg" onClick={() => setCreateMarketOpen(true)} className="bg-primary hover:bg-primary/90">
-                      <Plus className="w-5 h-5 mr-2" />
-                      Crear Market
-                    </Button>
                     <Button variant="outline" size="lg" asChild>
                       <a href="#como-funciona">Cómo Funciona</a>
                     </Button>
@@ -533,6 +609,36 @@ export default function InicioPage() {
                       className="border-primary/20 hover:bg-primary/10"
                     >
                       🔄 Refrescar
+                    </Button>
+                    <Button 
+                      onClick={() => {
+                        toast({
+                          title: "🧪 Prueba de Notificación",
+                          description: "¡El sistema de notificaciones funciona correctamente! Esta es una prueba.",
+                          duration: 4000,
+                        })
+                      }} 
+                      size="sm" 
+                      variant="outline"
+                      className="border-blue-200 hover:bg-blue-50 text-blue-600"
+                    >
+                      🔔 Test
+                    </Button>
+                    <Button 
+                      onClick={() => {
+                        const images = MarketImageStorage.getAllImages()
+                        console.log("📸 Imágenes almacenadas:", images)
+                        toast({
+                          title: "📸 Debug de Imágenes",
+                          description: `Imágenes almacenadas: ${images.length}. Ver consola para detalles.`,
+                          duration: 4000,
+                        })
+                      }} 
+                      size="sm" 
+                      variant="outline"
+                      className="border-purple-200 hover:bg-purple-50 text-purple-600"
+                    >
+                      📸 Debug
                     </Button>
                   </div>
                 </div>
@@ -640,62 +746,65 @@ export default function InicioPage() {
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {eventosFiltrados.map((evento) => (
                 <Card key={evento.id} className="border border-primary/20 bg-white shadow-lg hover:shadow-xl transition-shadow">
-                  {evento.imagen && (
-                    <div className="relative h-48 overflow-hidden rounded-t-lg">
+                  {evento.imagen ? (
+                    <div className="relative h-48 overflow-hidden rounded-t-lg bg-gradient-to-br from-primary/10 to-primary/5">
                       <Image
                         src={evento.imagen}
                         alt={evento.nombre}
                         fill
-                        className="object-cover"
+                        className="object-cover transition-opacity"
                         onError={(e) => {
-                          e.currentTarget.style.display = 'none'
+                          // En lugar de ocultar, mostrar un placeholder
+                          const target = e.currentTarget;
+                          target.style.opacity = '0';
+                          const parent = target.parentElement;
+                          if (parent && !parent.querySelector('.image-placeholder')) {
+                            const placeholder = document.createElement('div');
+                            placeholder.className = 'image-placeholder absolute inset-0 flex items-center justify-center bg-gradient-to-br from-primary/10 to-primary/20';
+                            placeholder.innerHTML = `
+                              <div class="text-center text-primary/60">
+                                <svg class="w-12 h-12 mx-auto mb-2" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd" />
+                                </svg>
+                                <p class="text-sm font-medium">Market Image</p>
+                              </div>
+                            `;
+                            parent.appendChild(placeholder);
+                          }
+                        }}
+                        onLoad={(e) => {
+                          // Asegurar que la imagen se muestre cuando cargue correctamente
+                          e.currentTarget.style.opacity = '1';
                         }}
                       />
                     </div>
+                  ) : (
+                    <div className="relative h-48 overflow-hidden rounded-t-lg bg-gradient-to-br from-primary/10 to-primary/20 flex items-center justify-center">
+                      <div className="text-center text-primary/60">
+                        <svg className="w-12 h-12 mx-auto mb-2" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+                        </svg>
+                        <p className="text-sm font-medium">Market Image</p>
+                      </div>
+                    </div>
                   )}
-                  <CardHeader>
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <CardTitle className="text-foreground">{evento.nombre}</CardTitle>
-                        <CardDescription className="text-muted-foreground mt-2">
-                          {evento.pregunta}
-                        </CardDescription>
-                      </div>
-                      <Badge
-                        variant={evento.estado === "activo" ? "default" : "secondary"}
-                        className={
-                          evento.estado === "activo"
-                            ? "bg-green-100 text-green-800 border-green-200"
-                            : "bg-gray-100 text-gray-800 border-gray-200"
-                        }
-                      >
-                        {evento.estado === "activo" ? "Activo" : "Finalizado"}
-                      </Badge>
+                  <CardContent className="p-6">
+                    <h3 className="text-xl font-bold text-foreground mb-3">{evento.nombre}</h3>
+                    <p className="text-muted-foreground mb-4">{evento.pregunta}</p>
+                    
+                    <div className="grid grid-cols-2 gap-3 mb-4">
+                      {evento.opciones.map((opcion) => (
+                        <div
+                          key={opcion.id}
+                          className="p-3 border border-primary/20 rounded-lg bg-primary/5 hover:bg-primary/10 transition-colors"
+                        >
+                          <div className="font-medium text-foreground">{opcion.nombre}</div>
+                          <div className="text-sm text-primary font-bold">{opcion.cuota.toFixed(2)}x</div>
+                          <div className="text-xs text-muted-foreground">{opcion.probabilidad.toFixed(0)}%</div>
+                        </div>
+                      ))}
                     </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="flex justify-between items-center p-3 bg-primary/5 rounded-lg">
-                        <div className="flex items-center space-x-2">
-                          <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                          <span className="font-medium text-foreground">Sí</span>
-                        </div>
-                        <div className="text-right">
-                          <div className="font-bold text-primary">{evento.opciones[0].cuota.toFixed(2)}x</div>
-                          <div className="text-sm text-muted-foreground">{evento.opciones[0].probabilidad.toFixed(0)}%</div>
-                        </div>
-                      </div>
-                      <div className="flex justify-between items-center p-3 bg-primary/5 rounded-lg">
-                        <div className="flex items-center space-x-2">
-                          <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                          <span className="font-medium text-foreground">No</span>
-                        </div>
-                        <div className="text-right">
-                          <div className="font-bold text-primary">{evento.opciones[1].cuota.toFixed(2)}x</div>
-                          <div className="text-sm text-muted-foreground">{evento.opciones[1].probabilidad.toFixed(0)}%</div>
-                        </div>
-                      </div>
-                    </div>
+
                     <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
                       <div className="flex items-center space-x-1">
                         <Calendar className="w-4 h-4" />
@@ -706,6 +815,15 @@ export default function InicioPage() {
                         <span>Pool: {((evento.opciones[0].cuota + evento.opciones[1].cuota) / 2 * 100).toFixed(0)} MXNB</span>
                       </div>
                     </div>
+
+                    {/* Controles de administrador */}
+                    <MarketAdminControls
+                      marketId={parseInt(evento.id)}
+                      marketQuestion={evento.pregunta}
+                      isResolved={evento.estado === "finalizado"}
+                      endTime={Math.floor(new Date(evento.fechaFin).getTime() / 1000)}
+                      className="mt-4"
+                    />
                   </CardContent>
                   <CardFooter>
                     <Button
@@ -786,12 +904,14 @@ export default function InicioPage() {
             </div>
             <div>
               <Label htmlFor="cantidad" className="text-sm font-medium text-foreground">
-                Cantidad MXNB
+                Cantidad MXNB (Mínimo: 1 MXNB)
               </Label>
               <Input
                 id="cantidad"
                 type="number"
-                placeholder="0.00"
+                placeholder="1.00"
+                min="1"
+                step="0.01"
                 value={cantidadPosicion}
                 onChange={(e) => setCantidadPosicion(e.target.value)}
                 className="mt-1"
@@ -801,6 +921,9 @@ export default function InicioPage() {
                   Ganancia potencial: {calcularGananciaPotencial().toFixed(2)} MXNB
                 </p>
               )}
+              <p className="text-xs text-muted-foreground mt-1">
+                📋 Cantidad mínima de apuesta: 1 MXNB
+              </p>
             </div>
             {txError && (
               <Alert variant="destructive">
@@ -828,12 +951,14 @@ export default function InicioPage() {
             {!hasInfiniteAllowance && (
               <Button
                 onClick={async () => {
-                  setTxError("Aprobando tokens MXNB...")
+                  setTxError("⏳ Aprobando tokens MXNB...")
+                  setCurrentTxType('approval') // Establecer tipo de transacción
                   try {
                     await approveInfiniteMXNB()
-                    setTxError("Aprobación enviada. Espera confirmación...")
+                    setTxError("⏳ Aprobación enviada, esperando confirmación...")
                   } catch (error: any) {
-                    setTxError("Error al aprobar: " + (error.message || "Error desconocido"))
+                    setCurrentTxType(null) // Resetear en caso de error
+                    setTxError("❌ Error al aprobar: " + (error.message || "Error desconocido"))
                   }
                 }}
                 disabled={isWritePending || isConfirming}
