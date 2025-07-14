@@ -3,13 +3,14 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { RegisterMenu } from "@/components/register-menu"
-import { Menu, X, User, LogOut } from "lucide-react"
+import { Menu, X, User, LogOut, DollarSign } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useUser } from "@/hooks/useUser"
 import { useDisconnect } from "wagmi"
 import { usePortalWallet } from "@/hooks/usePortalWallet"
+import { usePredictionMarket } from "@/hooks/use-prediction-market"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,10 +36,11 @@ export function Navbar() {
     connectionType
   } = useUser()
 
+  const { balance } = usePredictionMarket()
+
   const navItems = [
     { name: "Inicio", href: "/", active: pathname === "/" },
     { name: "Portal Wallet", href: "/portal", active: pathname === "/portal" },
-    { name: "Perfil", href: "/perfil", active: pathname === "/perfil" },
   ]
 
   const handleLogout = () => {
@@ -92,6 +94,22 @@ export function Navbar() {
               <RegisterMenu />
             ) : (
               <div className="flex items-center space-x-3">
+                {/* Balance */}
+                <div className="flex items-center space-x-2 px-3 py-2 bg-green-50 border border-green-200 rounded-lg">
+                  <DollarSign className="w-4 h-4 text-green-600" />
+                  <span className="font-medium text-green-800">
+                    Balance: {parseFloat(balance || "0").toFixed(0)} MXN
+                  </span>
+                </div>
+                
+                {/* Botón Depositar */}
+                <Button 
+                  variant="outline" 
+                  className="flex items-center space-x-2 px-3 py-2 bg-green-50 border-green-200 text-green-800 hover:bg-green-100"
+                >
+                  Depositar
+                </Button>
+                
                 {/* Dropdown del usuario */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -174,6 +192,22 @@ export function Navbar() {
                   <RegisterMenu variant="outline" className="w-full" />
                 ) : (
                   <div className="space-y-2">
+                    {/* Balance en móvil */}
+                    <div className="flex items-center space-x-3 px-3 py-2 bg-green-50 rounded-lg border border-green-200">
+                      <DollarSign className="w-4 h-4 text-green-600" />
+                      <span className="font-medium text-green-800">
+                        Balance: {parseFloat(balance || "0").toFixed(0)} MXN
+                      </span>
+                    </div>
+                    
+                    {/* Botón Depositar en móvil */}
+                    <Button 
+                      variant="outline" 
+                      className="w-full flex items-center space-x-2 px-3 py-2 bg-green-50 border-green-200 text-green-800 hover:bg-green-100"
+                    >
+                      Depositar
+                    </Button>
+                    
                     <div className="flex items-center space-x-3 px-3 py-2 bg-primary/10 rounded-lg border border-primary/20">
                       <User className="w-4 h-4 text-primary" />
                       <div className="flex-1">

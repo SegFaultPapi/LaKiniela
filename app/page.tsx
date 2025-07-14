@@ -374,7 +374,11 @@ export default function InicioPage() {
                     <Button 
                       variant="outline" 
                       className="w-full mt-4 border-primary/20 hover:bg-primary/10"
-                      onClick={() => setDialogOpen(true)}
+                      onClick={() => {
+                        document.getElementById('markets-section')?.scrollIntoView({ 
+                          behavior: 'smooth' 
+                        })
+                      }}
                     >
                       Ver todos los markets
                     </Button>
@@ -392,7 +396,7 @@ export default function InicioPage() {
       </section>
 
       {/* Markets Section */}
-      <section className="py-16">
+      <section id="markets-section" className="py-16">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between mb-8">
             <div>
