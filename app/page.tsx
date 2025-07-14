@@ -38,17 +38,39 @@ import {
   DollarSign,
   Lock,
   Image as ImageIcon,
+  Key,
 } from "lucide-react"
 import { usePredictionMarket } from "@/hooks/use-prediction-market"
-import { ConnectButton } from "@rainbow-me/rainbowkit"
+import { RegisterMenu } from "@/components/register-menu"
+import { useUser } from "@/hooks/useUser"
+import { UsernameSetupDialog } from "@/components/username-setup-dialog"
+import { useAccount, useDisconnect } from "wagmi"
+import { usePortalWallet } from "@/hooks/usePortalWallet"
 import Image from "next/image"
 import type { EventoApuesta } from "@/lib/types"
 import Link from "next/link"
 import { ImageUpload } from "@/components/image-upload"
+import { ConnectButton } from "@rainbow-me/rainbowkit"
 
 export default function InicioPage() {
+  const { disconnect } = useDisconnect()
+  const { disconnect: disconnectPortal } = usePortalWallet()
+  
   const {
+    user,
     isConnected,
+    needsUsernameSetup,
+    showUsernameDialog,
+    setUsername,
+    closeUsernameDialog,
+    showUsernameSetup,
+    logout,
+    getUserDisplay,
+    isUserSetup,
+    connectionType
+  } = useUser()
+
+  const {
     balance,
     events,
     allowance,
@@ -118,14 +140,32 @@ export default function InicioPage() {
       titulo: "Para Latinoamérica",
       descripcion: "Diseñado específicamente para la comunidad latina con MXNB",
     },
+    {
+      icon: Key,
+      titulo: "Portal Wallet SDK",
+      descripcion: "Utiliza wallets descentralizadas seguras con tecnología MPC avanzada",
+    },
   ]
 
   const pasos = [
-    "Conecta tu wallet compatible con Arbitrum",
+    "Conecta tu wallet compatible con Arbitrum o usa Portal Wallet",
     "Deposita MXNB en tu cuenta",
     "Elige un market y abre tu posición",
     "¡Gana y reclama tus recompensas!",
   ]
+
+  // Función para desconectar y cerrar sesión
+  const handleDisconnectAndLogout = () => {
+    // Desconectar la wallet
+    if (connectionType === 'Portal Wallet') {
+      disconnectPortal()
+    } else {
+      disconnect()
+    }
+    
+    // Cerrar sesión del usuario
+    logout()
+  }
 
   // Verificar si necesita aprobación
   useEffect(() => {
@@ -147,6 +187,17 @@ export default function InicioPage() {
       refetchEvents()
     }
   }, [isConfirmed, refetchEvents])
+
+  // Efecto para mostrar el diálogo de username cuando sea necesario
+  useEffect(() => {
+    if (isConnected && needsUsernameSetup && !showUsernameDialog) {
+      // Pequeño delay para asegurar que la conexión esté completa
+      const timer = setTimeout(() => {
+        showUsernameSetup()
+      }, 500)
+      return () => clearTimeout(timer)
+    }
+  }, [isConnected, needsUsernameSetup, showUsernameDialog, showUsernameSetup])
 
   const manejarPosicion = async () => {
     if (!eventoSeleccionado || !opcionSeleccionada || !cantidadPosicion) return
@@ -255,23 +306,40 @@ export default function InicioPage() {
                 Apuesta con MXNB y gana con la sabiduría de la multitud.
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
-                {!isConnected ? (
-                  <>
-                    <ConnectButton />
+                {!isConnected || !isUserSetup() ? (
+                  <div className="flex flex-col sm:flex-row gap-4">
+                    <RegisterMenu size="lg" />
                     <Button variant="outline" size="lg" asChild>
                       <a href="#como-funciona">Cómo Funciona</a>
                     </Button>
-                  </>
+                  </div>
                 ) : (
-                  <Button size="lg" onClick={() => setCreateMarketOpen(true)} className="bg-primary hover:bg-primary/90">
-                    <Plus className="w-5 h-5 mr-2" />
-                    Crear Market
-                  </Button>
+                  <div className="flex flex-col sm:flex-row gap-4">
+                    <Button size="lg" onClick={() => setCreateMarketOpen(true)} className="bg-primary hover:bg-primary/90">
+                      <Plus className="w-5 h-5 mr-2" />
+                      Crear Market
+                    </Button>
+                    <Button variant="outline" size="lg" asChild>
+                      <a href="#como-funciona">Cómo Funciona</a>
+                    </Button>
+                  </div>
                 )}
-                <Button variant="outline" size="lg" asChild>
-                  <a href="#como-funciona">Cómo Funciona</a>
-                </Button>
               </div>
+              
+              {/* Mensaje de bienvenida para usuarios conectados */}
+              {isConnected && isUserSetup() && (
+                <div className="mt-6 p-4 bg-primary/10 rounded-lg border border-primary/20">
+                  <div className="flex items-center gap-2 mb-2">
+                    <CheckCircle className="w-5 h-5 text-primary" />
+                    <span className="font-medium text-primary">
+                      ¡Bienvenido {getUserDisplay()}!
+                    </span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Tu cuenta está configurada y lista para participar en los mercados de predicción.
+                  </p>
+                </div>
+              )}
             </div>
             <div className="relative">
               <div className="bg-white rounded-2xl p-8 shadow-xl border border-primary/20">
@@ -303,12 +371,18 @@ export default function InicioPage() {
                         </div>
                       </div>
                     ))}
+                    <Button 
+                      variant="outline" 
+                      className="w-full mt-4 border-primary/20 hover:bg-primary/10"
+                      onClick={() => setDialogOpen(true)}
+                    >
+                      Ver todos los markets
+                    </Button>
                   </div>
                 ) : (
-                  <div className="text-center py-8">
-                    <HelpCircle className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-muted-foreground">No hay markets activos</p>
-                    <p className="text-sm text-muted-foreground">¡Sé el primero en crear uno!</p>
+                  <div className="text-center py-8 text-muted-foreground">
+                    <BarChart3 className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                    <p>No hay markets activos en este momento</p>
                   </div>
                 )}
               </div>
@@ -317,7 +391,56 @@ export default function InicioPage() {
         </div>
       </section>
 
+      {/* Features Section */}
+      <section className="py-20 bg-white">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl lg:text-4xl font-bold text-foreground mb-4">
+              ¿Por qué elegir La Kiniela?
+            </h2>
+            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+              Construido sobre Arbitrum con tecnología de vanguardia para una experiencia segura y eficiente
+            </p>
+          </div>
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+            {caracteristicas.map((caracteristica, index) => (
+              <Card key={index} className="border border-primary/20 hover:shadow-lg transition-shadow">
+                <CardContent className="p-6 text-center">
+                  <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <caracteristica.icon className="w-8 h-8 text-primary" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-foreground mb-2">{caracteristica.titulo}</h3>
+                  <p className="text-muted-foreground">{caracteristica.descripcion}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
 
+      {/* How it works section */}
+      <section id="como-funciona" className="py-20 bg-gradient-to-br from-primary/5 to-background">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl lg:text-4xl font-bold text-foreground mb-4">
+              Cómo funciona La Kiniela
+            </h2>
+            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+              Comenzar es fácil y rápido. Sigue estos simples pasos para empezar a ganar
+            </p>
+          </div>
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+            {pasos.map((paso, index) => (
+              <div key={index} className="text-center">
+                <div className="w-16 h-16 bg-primary text-white rounded-full flex items-center justify-center mx-auto mb-4 text-xl font-bold">
+                  {index + 1}
+                </div>
+                <p className="text-foreground font-medium">{paso}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
 
       {/* Markets Section */}
       <section className="py-16">
@@ -327,7 +450,7 @@ export default function InicioPage() {
               <h2 className="text-3xl font-bold text-foreground mb-2">Markets de Predicción</h2>
               <p className="text-muted-foreground">Participa en mercados de predicción y gana MXNB</p>
             </div>
-            {isConnected && (
+            {isConnected && isUserSetup() && (
               <Button onClick={() => setCreateMarketOpen(true)} className="bg-primary hover:bg-primary/90">
                 <Plus className="w-4 h-4 mr-2" />
                 Crear Market
@@ -364,7 +487,7 @@ export default function InicioPage() {
                 Conecta tu wallet o regístrate para participar en los mercados de predicción
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <ConnectButton />
+                <RegisterMenu />
               </div>
             </div>
           ) : eventosFiltrados.length > 0 ? (
@@ -441,13 +564,18 @@ export default function InicioPage() {
                   <CardFooter>
                     <Button
                       onClick={() => {
-                        setEventoSeleccionado(evento)
-                        setDialogOpen(true)
+                        if (isConnected && isUserSetup()) {
+                          setEventoSeleccionado(evento)
+                          setDialogOpen(true)
+                        }
                       }}
                       className="w-full bg-primary hover:bg-primary/90"
-                      disabled={evento.estado !== "activo"}
+                      disabled={evento.estado !== "activo" || !isConnected || !isUserSetup()}
                     >
-                      {evento.estado === "activo" ? "Participar" : "Finalizado"}
+                      {evento.estado === "activo" ? 
+                        (isConnected && isUserSetup() ? "Participar" : "Conecta tu wallet") : 
+                        "Finalizado"
+                      }
                     </Button>
                   </CardFooter>
                 </Card>
@@ -463,7 +591,7 @@ export default function InicioPage() {
                   : `No hay markets en la categoría "${categorias.find(c => c.id === categoriaActiva)?.nombre}"`
                 }
               </p>
-              {isConnected && categoriaActiva === "todos" && (
+              {isConnected && isUserSetup() && categoriaActiva === "todos" && (
                 <Button onClick={() => setCreateMarketOpen(true)} className="bg-primary hover:bg-primary/90">
                   <Plus className="w-4 h-4 mr-2" />
                   Crear Primer Market
@@ -471,44 +599,6 @@ export default function InicioPage() {
               )}
             </div>
           )}
-        </div>
-      </section>
-
-      {/* Características */}
-      <section id="como-funciona" className="py-16 bg-primary/5">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-foreground mb-4">¿Cómo Funciona?</h2>
-            <p className="text-xl text-muted-foreground">Sistema simple y transparente para todos</p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-8 mb-12">
-            {caracteristicas.map((caracteristica, index) => (
-              <Card key={index} className="border border-primary/20 bg-white text-center">
-                <CardContent className="pt-6">
-                  <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <caracteristica.icon className="w-6 h-6 text-primary" />
-                  </div>
-                  <h3 className="text-xl font-semibold text-foreground mb-2">{caracteristica.titulo}</h3>
-                  <p className="text-muted-foreground">{caracteristica.descripcion}</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-
-          <div className="bg-white rounded-2xl p-8 border border-primary/20">
-            <h3 className="text-2xl font-bold text-foreground mb-6 text-center">Pasos para Participar</h3>
-            <div className="grid md:grid-cols-4 gap-6">
-              {pasos.map((paso, index) => (
-                <div key={index} className="text-center">
-                  <div className="w-12 h-12 bg-primary text-white rounded-full flex items-center justify-center mx-auto mb-4 font-bold">
-                    {index + 1}
-                  </div>
-                  <p className="text-foreground font-medium">{paso}</p>
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
       </section>
 
@@ -711,6 +801,13 @@ export default function InicioPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Diálogo de configuración de username - Solo aquí para evitar duplicaciones */}
+      <UsernameSetupDialog
+        isOpen={showUsernameDialog}
+        onClose={closeUsernameDialog}
+        onUsernameSet={setUsername}
+      />
     </div>
   )
 }
