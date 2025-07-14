@@ -25,9 +25,16 @@ const configChecks = [
   {
     file: 'app/api/upload/route.ts',
     check: (content) => {
-      return content.includes('base64') && !content.includes('writeFile') && !content.includes('fs/promises')
+      return content.includes('base64') && !content.includes('writeFile') && !content.includes('fs/promises') && content.includes('console.log')
     },
-    message: 'API de upload compatible con Vercel'
+    message: 'API de upload compatible con Vercel (con logging detallado)'
+  },
+  {
+    file: 'app/api/upload-debug/route.ts',
+    check: (content) => {
+      return content.includes('NextResponse') && content.includes('debug') && content.includes('Test 1')
+    },
+    message: 'API de upload-debug para troubleshooting'
   },
   {
     file: 'app/api/test/route.ts',
@@ -67,6 +74,7 @@ for (const { file, check, message } of configChecks) {
 // Verificar estructura de directorios
 const dirChecks = [
   'app/api/upload',
+  'app/api/upload-debug',
   'app/api/test',
   'components',
   'hooks',
@@ -119,11 +127,12 @@ if (allChecksPass) {
   console.log('🚀 Listo para deploy en Vercel')
   console.log('\nComandos para deploy:')
   console.log('  git add .')
-  console.log('  git commit -m "fix: Corregir configuración de Vercel para App Router"')
+  console.log('  git commit -m "fix: Agregar debug detallado para upload de imágenes"')
   console.log('  git push origin main')
   console.log('\nPara verificar después del deploy:')
   console.log('  - Visita: https://tu-app.vercel.app/api/test')
   console.log('  - Prueba la creación de markets con imágenes')
+  console.log('  - Usa los botones de debug para identificar problemas')
   console.log('  - Revisa los logs con: vercel logs --follow')
 } else {
   console.log('❌ Algunas verificaciones fallaron')

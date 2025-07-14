@@ -2,6 +2,9 @@
   "functions": {
     "app/api/upload/route.ts": {
       "maxDuration": 30
+    },
+    "app/api/upload-debug/route.ts": {
+      "maxDuration": 30
     }
   }
 } 

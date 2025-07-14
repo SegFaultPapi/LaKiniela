@@ -1362,9 +1362,71 @@ export default function InicioPage() {
                 >
                   Test Upload
                 </Button>
+                
+                <Button 
+                  type="button"
+                  variant="outline" 
+                  size="sm"
+                  onClick={async () => {
+                    if (!imagenFile) {
+                      toast({
+                        title: "⚠️ Sin imagen",
+                        description: "Selecciona una imagen primero",
+                        variant: "destructive",
+                      })
+                      return
+                    }
+                    
+                    try {
+                      const formData = new FormData()
+                      formData.append('image', imagenFile)
+                      
+                      console.log('🔍 Probando upload debug...')
+                      const response = await fetch('/api/upload-debug', {
+                        method: 'POST',
+                        body: formData,
+                      })
+                      
+                      console.log('📡 Upload debug response:', {
+                        status: response.status,
+                        statusText: response.statusText,
+                        ok: response.ok
+                      })
+                      
+                      if (response.ok) {
+                        const data = await response.json()
+                        console.log('✅ Upload debug exitoso:', data)
+                        toast({
+                          title: "✅ Upload Debug Exitoso",
+                          description: `Todos los tests pasaron. Ver consola para detalles completos.`,
+                          duration: 5000,
+                        })
+                      } else {
+                        const errorData = await response.json()
+                        console.error('❌ Upload debug falló:', errorData)
+                        toast({
+                          title: "❌ Upload Debug Falló",
+                          description: `Error en step: ${errorData.error || 'Error desconocido'}`,
+                          variant: "destructive",
+                          duration: 5000,
+                        })
+                      }
+                    } catch (error) {
+                      console.error('❌ Error en upload debug:', error)
+                      toast({
+                        title: "❌ Error Upload Debug",
+                        description: `Error: ${error instanceof Error ? error.message : 'Error desconocido'}`,
+                        variant: "destructive",
+                        duration: 5000,
+                      })
+                    }
+                  }}
+                >
+                  Debug Upload
+                </Button>
               </div>
               <p className="text-xs text-gray-500 mt-2">
-                Estos botones son para debug. Test API verifica el servidor, Test Upload prueba la subida de imágenes.
+                Test API verifica el servidor, Test Upload prueba la subida completa, Debug Upload prueba paso a paso.
               </p>
             </div>
             <div>
