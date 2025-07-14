@@ -11,16 +11,16 @@ const configChecks = [
     file: 'vercel.json',
     check: (content) => {
       const config = JSON.parse(content)
-      return config.functions && config.api && config.api.bodyParser
+      return config.functions && config.functions['app/api/upload/route.ts'] && !config.api
     },
-    message: 'Configuración de Vercel'
+    message: 'Configuración de Vercel (sin api.bodyParser para App Router)'
   },
   {
     file: 'next.config.mjs',
     check: (content) => {
-      return content.includes('api:') && content.includes('bodyParser') && content.includes('sizeLimit')
+      return content.includes('nextConfig') && !content.includes('api:') && !content.includes('bodyParser')
     },
-    message: 'Configuración de Next.js'
+    message: 'Configuración de Next.js (sin api.bodyParser para App Router)'
   },
   {
     file: 'app/api/upload/route.ts',
@@ -119,7 +119,7 @@ if (allChecksPass) {
   console.log('🚀 Listo para deploy en Vercel')
   console.log('\nComandos para deploy:')
   console.log('  git add .')
-  console.log('  git commit -m "fix: Implementar upload de imágenes compatible con Vercel"')
+  console.log('  git commit -m "fix: Corregir configuración de Vercel para App Router"')
   console.log('  git push origin main')
   console.log('\nPara verificar después del deploy:')
   console.log('  - Visita: https://tu-app.vercel.app/api/test')

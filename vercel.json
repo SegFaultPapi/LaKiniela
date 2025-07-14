@@ -3,10 +3,5 @@
     "app/api/upload/route.ts": {
       "maxDuration": 30
     }
-  },
-  "api": {
-    "bodyParser": {
-      "sizeLimit": "10mb"
-    }
   }
 } 

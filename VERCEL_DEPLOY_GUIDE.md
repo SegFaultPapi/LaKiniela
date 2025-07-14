@@ -18,7 +18,7 @@ const base64 = buffer.toString('base64')
 const dataURL = `data:${file.type};base64,${base64}`
 ```
 
-### 2. **Configuración de Vercel Optimizada**
+### 2. **Configuración de Vercel Optimizada (App Router)**
 
 ```json
 // vercel.json
@@ -27,28 +27,32 @@ const dataURL = `data:${file.type};base64,${base64}`
     "app/api/upload/route.ts": {
       "maxDuration": 30
     }
-  },
-  "api": {
-    "bodyParser": {
-      "sizeLimit": "10mb"
-    }
   }
 }
 ```
 
-### 3. **Configuración de Next.js Mejorada**
+**Nota importante**: Para App Router de Next.js 13+, NO se usa `api.bodyParser` en `vercel.json`. Esa configuración era para las páginas API anteriores.
+
+### 3. **Configuración de Next.js para App Router**
 
 ```javascript
 // next.config.mjs
 const nextConfig = {
-  api: {
-    bodyParser: {
-      sizeLimit: '10mb',
-    },
+  eslint: {
+    ignoreDuringBuilds: true,
   },
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+  images: {
+    unoptimized: true,
+  },
+  // NO usar api.bodyParser en App Router
   // ... resto de configuración
 }
 ```
+
+**Nota importante**: En App Router, no se usa `api.bodyParser` en `next.config.mjs`. El manejo de body parsing se hace directamente en las funciones de la API.
 
 ## 🧪 Herramientas de Debugging
 
@@ -122,7 +126,7 @@ console.log("📸 Iniciando upload de imagen:", {
 
 ### 3. **Límites de Vercel**
 - Timeout máximo de 30 segundos para funciones
-- Límite de payload de 10MB
+- Límite de payload para funciones serverless
 
 ## 🔄 Pasos para Resolver el Problema
 
@@ -130,7 +134,7 @@ console.log("📸 Iniciando upload de imagen:", {
 
 ```bash
 git add .
-git commit -m "fix: Implementar upload de imágenes compatible con Vercel"
+git commit -m "fix: Corregir configuración de Vercel para App Router"
 git push origin main
 ```
 
@@ -170,8 +174,8 @@ console.log("📡 Response recibida:")
 - Botón "Test Upload" después de seleccionar imagen
 
 ### 3. **Verifica la Configuración**
-- Confirma que `vercel.json` está en el root
-- Verifica que `next.config.mjs` tiene la configuración correcta
+- Confirma que `vercel.json` NO tiene la propiedad `api`
+- Verifica que `next.config.mjs` NO tiene `api.bodyParser`
 
 ## 🎉 Resultado Esperado
 
@@ -179,17 +183,29 @@ Después de implementar estos cambios:
 
 1. ✅ Las imágenes se procesan correctamente como base64
 2. ✅ No más errores de "Error interno del servidor"
-3. ✅ Funciona tanto en desarrollo como en producción
-4. ✅ Logs detallados para debugging
+3. ✅ No más errores de validación de schema en Vercel
+4. ✅ Funciona tanto en desarrollo como en producción
+5. ✅ Logs detallados para debugging
 
 ## 📊 Monitoreo Post-Deploy
 
 ### Métricas a Verificar:
+- ✅ Deploy exitoso sin errores de schema
 - ✅ Tiempo de respuesta de `/api/upload`
 - ✅ Tasa de éxito de creación de markets
 - ✅ Ausencia de errores 500 en los logs
 - ✅ Funcionamiento correcto de imágenes en markets
 
+## 🚨 Errores Comunes y Soluciones
+
+### Error: "should NOT have additional property `api`"
+**Causa**: Usar configuración de páginas API en App Router
+**Solución**: Remover la propiedad `api` de `vercel.json`
+
+### Error: "api.bodyParser is not valid"
+**Causa**: Usar configuración de páginas API en `next.config.mjs`
+**Solución**: Remover `api.bodyParser` de `next.config.mjs`
+
 ---
 
-**Nota**: Esta solución está optimizada para Vercel y es completamente compatible con las limitaciones de las funciones serverless. 
+**Nota**: Esta solución está optimizada para App Router de Next.js 13+ y es completamente compatible con las limitaciones de las funciones serverless de Vercel. 
