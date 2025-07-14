@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -28,19 +28,28 @@ import {
   Wallet,
   Clock,
   Calendar,
-  Target,
-  Loader2,
   AlertCircle,
-  ExternalLink,
+  FileText,
+  Users,
   BarChart3,
+  Download,
+  Upload,
   Plus,
-  HelpCircle,
-  DollarSign,
-  Lock,
+  Home,
+  Search,
+  Settings,
+  User,
+  LogOut,
+  ExternalLink,
+  Copy,
+  Trash2,
+  Edit,
   Image as ImageIcon,
   Key,
+  DollarSign,
+  Loader2,
 } from "lucide-react"
-import { usePredictionMarket } from "@/hooks/use-prediction-market"
+import { usePredictionMarketV2 } from "@/hooks/use-prediction-market-v2"
 import { RegisterMenu } from "@/components/register-menu"
 import { useUser } from "@/hooks/useUser"
 import { UsernameSetupDialog } from "@/components/username-setup-dialog"
@@ -72,17 +81,166 @@ export default function InicioPage() {
 
   const {
     balance,
-    events,
-    allowance,
+    marketCount,
+    hasInfiniteAllowance,
     isWritePending,
     isConfirming,
     isConfirmed,
     lastTxHash,
-    placeBet,
-    approveMXNB,
-    refetchEvents,
+    buySharesWithAllowance,
+    approveInfiniteMXNB,
+    refetchMarketCount,
+    refetchBalance, // Agregar refetch del balance
     createMarket,
-  } = usePredictionMarket()
+    events, // Ya viene del hook v2
+    markets, // Markets directos del hook
+    loadingMarkets, // Estado de carga
+    loadAllMarkets, // Función para recargar markets
+  } = usePredictionMarketV2()
+
+  const { address, chainId } = useAccount()
+
+  // Debug: Mostrar información en consola
+  useEffect(() => {
+    console.log("=== DEBUG INFO ===")
+    console.log("Balance:", balance)
+    console.log("Market Count:", marketCount)
+    console.log("Markets Array:", markets)
+    console.log("Events Array:", events)
+    console.log("Loading Markets:", loadingMarkets)
+    console.log("Has Infinite Allowance:", hasInfiniteAllowance)
+    console.log("Address:", address)
+    console.log("Is Connected:", isConnected)
+    console.log("Chain ID:", chainId)
+    console.log("==================")
+  }, [balance, marketCount, markets, events, loadingMarkets, hasInfiniteAllowance, address, isConnected, chainId])
+
+  // Función específica para diagnosticar balance MXNB
+  const diagnosticarBalanceMXNB = useCallback(async () => {
+    if (!address || !isConnected) {
+      console.log("❌ No hay wallet conectada")
+      return
+    }
+
+    console.log("🔍 DIAGNÓSTICO BALANCE MXNB")
+    console.log("Wallet Address:", address)
+    console.log("Token MXNB Address:", "0x82B9e52b26A2954E113F94Ff26647754d5a4247D")
+    console.log("Chain ID actual:", chainId)
+    console.log("Esperado Chain ID:", 421614)
+
+    try {
+      // Importar viem para hacer llamada directa
+      const { createPublicClient, http } = await import('viem')
+      const { arbitrumSepolia } = await import('viem/chains')
+      
+      const client = createPublicClient({
+        chain: arbitrumSepolia,
+        transport: http()
+      })
+
+      // Llamada directa al balance
+      const balanceRaw = await client.readContract({
+        address: "0x82B9e52b26A2954E113F94Ff26647754d5a4247D",
+        abi: [
+          {
+            name: "balanceOf",
+            type: "function",
+            stateMutability: "view", 
+            inputs: [{ name: "account", type: "address" }],
+            outputs: [{ name: "", type: "uint256" }],
+          }
+        ],
+        functionName: "balanceOf",
+        args: [address]
+      })
+
+      console.log("✅ Balance Raw (BigInt):", balanceRaw)
+      console.log("✅ Balance Formateado:", Number(balanceRaw) / 1e18, "MXNB")
+
+      // Verificar también info del token
+      const tokenName = await client.readContract({
+        address: "0x82B9e52b26A2954E113F94Ff26647754d5a4247D",
+        abi: [
+          {
+            name: "name",
+            type: "function",
+            stateMutability: "view",
+            inputs: [],
+            outputs: [{ name: "", type: "string" }],
+          }
+        ],
+        functionName: "name"
+      })
+
+      const tokenSymbol = await client.readContract({
+        address: "0x82B9e52b26A2954E113F94Ff26647754d5a4247D", 
+        abi: [
+          {
+            name: "symbol",
+            type: "function",
+            stateMutability: "view",
+            inputs: [],
+            outputs: [{ name: "", type: "string" }],
+          }
+        ],
+        functionName: "symbol"
+      })
+
+      console.log("✅ Token Name:", tokenName)
+      console.log("✅ Token Symbol:", tokenSymbol)
+
+    } catch (error) {
+      console.error("❌ Error leyendo balance MXNB:", error)
+    }
+  }, [address, isConnected, chainId])
+
+  // Función para refrescar todo manualmente
+  const refrescarTodo = useCallback(() => {
+    console.log("🔄 Refrescando datos...")
+    refetchBalance()
+    refetchMarketCount()
+    loadAllMarkets()
+    // También ejecutar diagnóstico
+    diagnosticarBalanceMXNB()
+  }, [refetchBalance, refetchMarketCount, loadAllMarkets, diagnosticarBalanceMXNB])
+
+  // Mapear a nombres compatibles con el código existente (simplificado)
+  const allowance = hasInfiniteAllowance ? "999999999999999999999999999" : "0"
+  const placeBet = async (eventId: string, optionId: string, amount: string) => {
+    console.log("🎯 placeBet llamado con:", { eventId, optionId, amount })
+    
+    // Validar y convertir marketId
+    const marketId = parseInt(eventId)
+    if (isNaN(marketId) || marketId < 0) {
+      throw new Error(`Event ID inválido: ${eventId}`)
+    }
+    
+    const isOptionA = optionId === "si" || optionId === "option_a"
+    
+    console.log("🎯 Participando en market:", { 
+      originalEventId: eventId,
+      marketId, 
+      isOptionA, 
+      amount,
+      marketCount
+    })
+    
+    // Verificar que el market existe
+    if (marketCount && marketId >= marketCount) {
+      throw new Error(`Market ${marketId} no existe. Solo hay ${marketCount} markets.`)
+    }
+    
+    const result = await buySharesWithAllowance(marketId, isOptionA, amount)
+    
+    if (!result.success) {
+      throw new Error(result.step)
+    }
+    
+    console.log("✅ Participación exitosa:", result.step)
+    return result.hash
+  }
+  const approveMXNB = approveInfiniteMXNB
+  const refetchEvents = refetchMarketCount
 
   const [eventoSeleccionado, setEventoSeleccionado] = useState<EventoApuesta | null>(null)
   const [opcionSeleccionada, setOpcionSeleccionada] = useState<string>("")
@@ -110,11 +268,11 @@ export default function InicioPage() {
   const eventosDisponibles = events
 
   const categorias = [
-    { id: "todos", nombre: "Todos", icon: Target },
+    { id: "todos", nombre: "Todos", icon: BarChart3 },
     { id: "deportes", nombre: "Deportes", icon: BarChart3 },
     { id: "cripto", nombre: "Cripto", icon: TrendingUp },
     { id: "politica", nombre: "Política", icon: Calendar },
-    { id: "general", nombre: "General", icon: HelpCircle },
+    { id: "general", nombre: "General", icon: Users },
   ]
 
   const [categoriaActiva, setCategoriaActiva] = useState("todos")
@@ -178,15 +336,24 @@ export default function InicioPage() {
 
   // Manejar confirmación de transacción
   useEffect(() => {
-    if (isConfirmed) {
-      setDialogOpen(false)
-      setEventoSeleccionado(null)
-      setOpcionSeleccionada("")
-      setCantidadPosicion("")
-      setTxError("")
-      refetchEvents()
+    if (isConfirmed && lastTxHash) {
+      console.log("✅ Transacción confirmada:", lastTxHash)
+      setTxError("¡Transacción exitosa!")
+      
+      // Cerrar modal después de un breve delay para mostrar el mensaje de éxito
+      setTimeout(() => {
+        setDialogOpen(false)
+        setEventoSeleccionado(null)
+        setOpcionSeleccionada("")
+        setCantidadPosicion("")
+        setTxError("")
+        
+        // Refrescar datos - incluyendo allowance para actualizar hasInfiniteAllowance
+        refetchBalance()
+        refetchEvents()
+      }, 2000)
     }
-  }, [isConfirmed, refetchEvents])
+  }, [isConfirmed, lastTxHash, refetchBalance, refetchEvents])
 
   // Efecto para mostrar el diálogo de username cuando sea necesario
   useEffect(() => {
@@ -205,10 +372,26 @@ export default function InicioPage() {
     setTxError("")
 
     try {
-      await placeBet(eventoSeleccionado.id, opcionSeleccionada, cantidadPosicion)
+      // Ahora intentar participar directamente
+      console.log("🎯 Intentando participar en market")
+      console.log("🔍 Estado actual - hasInfiniteAllowance:", hasInfiniteAllowance)
+      
+      const buyHash = await placeBet(eventoSeleccionado.id, opcionSeleccionada, cantidadPosicion)
+      
+      if (buyHash) {
+        setTxError("Transacción enviada, esperando confirmación...")
+        console.log("🔄 Hash de transacción:", buyHash)
+      }
+      
     } catch (error: any) {
       console.error("Error en transacción:", error)
-      setTxError(error.message || "Error al procesar la transacción")
+      
+      // Si el error incluye allowance, mostrar mensaje específico
+      if (error.message.includes("allowance") || error.message.includes("aprobar")) {
+        setTxError("Se necesita aprobar allowance de MXNB. La transacción se encargará automáticamente.")
+      } else {
+        setTxError(error.message || "Error al procesar la transacción")
+      }
     }
   }
 
@@ -256,15 +439,17 @@ export default function InicioPage() {
         imageUrl = uploadResult.imageUrl
       }
 
-      await createMarket({
-        nombre: nuevoMarket.nombre,
-        descripcion: nuevoMarket.descripcion,
-        pregunta: nuevoMarket.pregunta,
-        categoria: nuevoMarket.categoria,
-        fechaFin: nuevoMarket.fechaFin,
-        poolInicial: nuevoMarket.poolInicial,
-        imagen: imageUrl,
-      })
+      // Calcular duración en horas desde ahora hasta la fecha fin
+      const now = new Date()
+      const endDate = new Date(nuevoMarket.fechaFin)
+      const durationHours = Math.max(1, Math.floor((endDate.getTime() - now.getTime()) / (1000 * 60 * 60)))
+
+      await createMarket(
+        nuevoMarket.pregunta,
+        "Sí", // optionA
+        "No", // optionB
+        durationHours
+      )
 
       // Limpiar formulario
       setNuevoMarket({
@@ -338,6 +523,18 @@ export default function InicioPage() {
                   <p className="text-sm text-muted-foreground">
                     Tu cuenta está configurada y lista para participar en los mercados de predicción.
                   </p>
+                  <div className="flex items-center gap-4 text-sm mt-3">
+                    <span>Balance: <strong>{balance} MXNB</strong></span>
+                    <span>Markets: <strong>{marketCount}</strong></span>
+                    <Button 
+                      onClick={refrescarTodo} 
+                      size="sm" 
+                      variant="outline"
+                      className="border-primary/20 hover:bg-primary/10"
+                    >
+                      🔄 Refrescar
+                    </Button>
+                  </div>
                 </div>
               )}
             </div>
@@ -351,7 +548,7 @@ export default function InicioPage() {
                 </div>
                 {!isConnected ? (
                   <div className="text-center py-8">
-                    <Lock className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                    <Key className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                     <p className="text-muted-foreground font-medium">Inicia sesión primero para ver los markets activos</p>
                     <p className="text-sm text-muted-foreground mt-2">Conecta tu wallet o regístrate para participar</p>
                   </div>
@@ -430,7 +627,7 @@ export default function InicioPage() {
           {/* Lista de eventos */}
           {!isConnected ? (
             <div className="text-center py-16">
-              <Lock className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+              <Key className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-xl font-semibold text-foreground mb-2">Inicia sesión primero para ver los markets activos</h3>
               <p className="text-muted-foreground mb-6">
                 Conecta tu wallet o regístrate para participar en los mercados de predicción
@@ -532,7 +729,7 @@ export default function InicioPage() {
             </div>
           ) : (
             <div className="text-center py-16">
-              <HelpCircle className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+              <Users className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-xl font-semibold text-foreground mb-2">No hay markets disponibles</h3>
               <p className="text-muted-foreground mb-6">
                 {categoriaActiva === "todos"
@@ -611,14 +808,45 @@ export default function InicioPage() {
                 <AlertDescription>{txError}</AlertDescription>
               </Alert>
             )}
+            
+            {/* Mostrar botón de approve si no tiene allowance infinito */}
+            {!hasInfiniteAllowance && (
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  Necesitas aprobar tokens MXNB antes de participar.
+                </AlertDescription>
+              </Alert>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>
               Cancelar
             </Button>
+            
+            {/* Botón de aprobar si no tiene allowance infinito */}
+            {!hasInfiniteAllowance && (
+              <Button
+                onClick={async () => {
+                  setTxError("Aprobando tokens MXNB...")
+                  try {
+                    await approveInfiniteMXNB()
+                    setTxError("Aprobación enviada. Espera confirmación...")
+                  } catch (error: any) {
+                    setTxError("Error al aprobar: " + (error.message || "Error desconocido"))
+                  }
+                }}
+                disabled={isWritePending || isConfirming}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                {(isWritePending || isConfirming) && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                Aprobar MXNB
+              </Button>
+            )}
+            
             <Button
               onClick={manejarPosicion}
-              disabled={!opcionSeleccionada || !cantidadPosicion || isWritePending || isConfirming}
+              disabled={!opcionSeleccionada || !cantidadPosicion || isWritePending || isConfirming || !hasInfiniteAllowance}
               className="bg-primary hover:bg-primary/90"
             >
               {(isWritePending || isConfirming) && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}

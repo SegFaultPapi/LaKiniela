@@ -99,37 +99,56 @@ export function usePredictionMarket() {
     return nuevoMarket
   }
 
-  // Función para participar en market
+  // Función para participar en market (interacción real con blockchain)
   const participateInMarket = async (marketId: string, opcionId: "si" | "no", mxnbAmount: string) => {
     if (!address) throw new Error("Wallet no conectado")
+    if (!isConnected) throw new Error("Wallet no conectado")
 
     const amount = Number.parseFloat(mxnbAmount)
     if (isNaN(amount) || amount <= 0) {
       throw new Error("Cantidad inválida")
     }
 
-    // Verificar balance usando el balance local
-    const currentBalance = Number.parseFloat(localBalance)
+    // Verificar balance real
+    const currentBalance = mxnbBalance ? Number(formatMXNB(mxnbBalance)) : 0
     console.log("💰 Verificando balance para participación:")
-    console.log("  - Balance local:", currentBalance, "MXNB")
+    console.log("  - Balance real:", currentBalance, "MXNB")
     console.log("  - Cantidad solicitada:", amount, "MXNB")
     
     if (currentBalance < amount) {
       throw new Error(`Balance insuficiente. Tienes ${currentBalance} MXNB, necesitas ${amount} MXNB`)
     }
 
-    // Participar en el market local
-    const result = MarketStorage.participateInMarket(address, marketId, opcionId, amount)
+    try {
+      // Convertir marketId a número y mapear opción
+      const marketIdNumber = parseInt(marketId)
+      const isOptionA = opcionId === "si" // "si" = true (opción A), "no" = false (opción B)
+      const amountWei = parseMXNB(mxnbAmount)
 
-    if (!result.success) {
-      throw new Error(result.error || "Error al participar en el market")
+      console.log("🔄 Comprando shares en el contrato:")
+      console.log("  - Market ID:", marketIdNumber)
+      console.log("  - Opción A (Si):", isOptionA)
+      console.log("  - Cantidad (Wei):", amountWei.toString())
+
+      // Llamar a la función buyShares del contrato
+      await writeContract({
+        address: CONTRACTS.PREDICTION_MARKET,
+        abi: PREDICTION_MARKET_ABI,
+        functionName: "buyShares",
+        args: [BigInt(marketIdNumber), isOptionA, amountWei],
+      })
+
+      // Guardar el hash de la transacción
+      if (hash) {
+        setLastTxHash(hash)
+        console.log("✅ Transacción enviada:", hash)
+      }
+
+      return hash
+    } catch (error) {
+      console.error("❌ Error al comprar shares:", error)
+      throw new Error(`Error en la transacción: ${error}`)
     }
-
-    // Recargar datos
-    loadLocalMarkets()
-    loadLocalParticipations()
-
-    return result.sharesCompradas
   }
 
   // Función para aprobar tokens MXNB (mantener para futuras integraciones)
@@ -164,17 +183,17 @@ export function usePredictionMarket() {
   }
 
   // Función para reclamar recompensas
-  const claimReward = async (betId: string): Promise<`0x${string}` | undefined> => {
+  const claimReward = async (marketId: string): Promise<`0x${string}` | undefined> => {
     if (!address) throw new Error("Wallet no conectado")
 
-    const betIdBigInt = BigInt(betId)
+    const marketIdBigInt = BigInt(parseInt(marketId))
 
     try {
       await writeContract({
         address: CONTRACTS.PREDICTION_MARKET,
         abi: PREDICTION_MARKET_ABI,
-        functionName: "claimReward",
-        args: [betIdBigInt],
+        functionName: "claimWinnings",
+        args: [marketIdBigInt],
       })
 
       // El hash se obtiene del hook useWriteContract
@@ -184,7 +203,7 @@ export function usePredictionMarket() {
       }
       return undefined
     } catch (error) {
-      console.error("Error al reclamar recompensa:", error)
+      console.error("Error al reclamar ganancias:", error)
       throw error
     }
   }

@@ -1,49 +1,88 @@
 //SPDX-License-Identifier: MIT
 pragma solidity ^0.8.13;
 
-/*
- * NOTA: Este contrato es solo para CONSULTA y REFERENCIA
- * No requiere compilación ni instalación de dependencias OpenZeppelin
- * Las dependencias se resolverían al compilar en un entorno Solidity apropiado
- */
-
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 /**
  * @title PredictionMarket
- * @dev A prediction market contract where users can bet on outcomes and claim winnings based on the result.
+ * @dev A prediction market contract for LA KINIELA platform where users can bet on outcomes using MXNB tokens
  */
 contract PredictionMarket is Ownable, ReentrancyGuard {
     /// @notice Market prediction outcome enum
     enum MarketOutcome {
         UNRESOLVED,
         OPTION_A,
-        OPTION_B
+        OPTION_B,
+        CANCELLED
     }
 
-    /// @dev Represents a prediction market.
+    /// @dev User shares structure to track balances
+    struct UserShares {
+        uint128 optionA;  // Reduced from uint256 to uint128 - still huge numbers but saves gas
+        uint128 optionB;  // This packs both into one storage slot
+    }
+
+    /// @dev Represents a prediction market - optimized for gas
     struct Market {
         string question;
-        uint256 endTime;
-        MarketOutcome outcome;
         string optionA;
         string optionB;
-        uint256 totalOptionAShares;
-        uint256 totalOptionBShares;
-        bool resolved;
-        mapping(address => uint256) optionASharesBalance;
-        mapping(address => uint256) optionBSharesBalance;
-        // new mapping to track if user has claimed winnings
+        uint256 endTime;
+        uint128 totalOptionAShares;  // Reduced from uint256 - saves storage slot
+        uint128 totalOptionBShares;  // Packed with totalOptionAShares
+        MarketOutcome outcome;       // 8 bits
+        bool resolved;              // 8 bits - packed with outcome in same slot
+        mapping(address => UserShares) userShares;
         mapping(address => bool) hasClaimed;
     }
 
-    IERC20 public bettingToken;
-    uint256 public marketCount;
-    mapping(uint256 => Market) public markets;
+    // ==================== CUSTOM ERRORS - MAJOR GAS OPTIMIZATION ====================
+    error InvalidTokenAddress();
+    error TokenAddressNotContract();
+    error InvalidFeeCollector();
+    error FeeExceedsMaximum();
+    error InvalidDuration();
+    error QuestionCannotBeEmpty();
+    error OptionsCannotBeEmpty();
+    error MarketTradingEnded();
+    error MarketAlreadyResolved();
+    error MinimumBetRequired();
+    error AmountTooLarge();
+    error TokenTransferFailed();
+    error MarketNotEnded();
+    error InvalidOutcome();
+    error UseRegularResolve();
+    error MarketNotResolved();
+    error AlreadyClaimed();
+    error NoStakeToRefund();
+    error RefundFailed();
+    error InvalidMarketOutcome();
+    error NoWinningsToClaim();
+    error InvalidAddress();
+    error OnlyFeeCollectorCanWithdraw();
+    error NoFeesToWithdraw();
+    error NoFeesAvailable();
+    error TransferFailed();
 
-    /// @notice Emitted when a new market is created.
+    /// @notice The MXNB token used for betting
+    IERC20 public immutable bettingToken;
+    
+    /// @notice Counter for market IDs and platform fee packed together
+    uint128 public marketCount;              // Reduced from uint256
+    uint128 public platformFeePercentage;    // Packed with marketCount
+    
+    /// @notice Mapping of market ID to Market struct
+    mapping(uint256 => Market) public markets;
+    
+    /// @notice Address where platform fees are collected
+    address public feeCollector;
+
+    /// @notice Track total funds in unresolved markets for gas optimization
+    uint256 private totalActiveMarketFunds;
+
+    /// @notice Emitted when a new market is created
     event MarketCreated(
         uint256 indexed marketId,
         string question,
@@ -52,7 +91,7 @@ contract PredictionMarket is Ownable, ReentrancyGuard {
         uint256 endTime
     );
 
-    /// @notice Emitted when shares are purchased in a market.
+    /// @notice Emitted when shares are purchased in a market
     event SharesPurchased(
         uint256 indexed marketId,
         address indexed buyer,
@@ -60,179 +99,285 @@ contract PredictionMarket is Ownable, ReentrancyGuard {
         uint256 amount
     );
 
-    /// @notice Emitted when a market is resolved with an outcome.
+    /// @notice Emitted when a market is resolved with an outcome
     event MarketResolved(uint256 indexed marketId, MarketOutcome outcome);
 
-    /// @notice Emitted when winnings are claimed by a user.
+    /// @notice Emitted when a market is terminated early
+    event MarketTerminated(uint256 indexed marketId, MarketOutcome outcome);
+
+    /// @notice Emitted when winnings are claimed by a user
     event Claimed(
         uint256 indexed marketId,
         address indexed user,
         uint256 amount
     );
 
+    /// @notice Emitted when platform fee is updated
+    event FeeUpdated(uint256 newFeePercentage);
+
+    /// @notice Emitted when fee collector is updated
+    event FeeCollectorUpdated(address newFeeCollector);
+
     /**
-     * @dev Sets the betting token address and initializes the contract owner.
-     * @param _bettingToken The address of the token used for betting.
+     * @dev Sets the betting token address and initializes the contract
+     * @param _bettingToken The address of the MXNB token used for betting
+     * @param _feeCollector Address where platform fees will be sent
+     * @param _initialFee Initial platform fee percentage (1 = 0.01%)
      */
-    constructor(address _bettingToken) {
+    constructor(
+        address _bettingToken,
+        address _feeCollector,
+        uint256 _initialFee
+    )Ownable(msg.sender){
+        if (_bettingToken == address(0)) revert InvalidTokenAddress();
+        if (!_isContract(_bettingToken)) revert TokenAddressNotContract();
+        if (_feeCollector == address(0)) revert InvalidFeeCollector();
+        if (_initialFee > 500) revert FeeExceedsMaximum();
+
         bettingToken = IERC20(_bettingToken);
-        _setupOwner(msg.sender); // Set the contract deployer as the owner
+        feeCollector = _feeCollector;
+        platformFeePercentage = uint128(_initialFee);
     }
 
     /**
-     * @dev Required override for Thirdweb's Ownable extension.
-     * @return True if the caller is the contract owner.
+     * @dev Internal function to check if address is a contract - OPTIMIZED
      */
-    function _canSetOwner() internal view virtual override returns (bool) {
-        return msg.sender == owner();
+    function _isContract(address _addr) private view returns (bool) {
+        return _addr.code.length > 0;
     }
 
     /**
-     * @notice Creates a new prediction market.
-     * @param _question The question for the market.
-     * @param _optionA The first option for the market.
-     * @param _optionB The second option for the market.
-     * @param _duration The duration for which the market is active.
-     * @return marketId The ID of the newly created market.
+     * @notice Creates a new prediction market
+     * @param _question The question for the market
+     * @param _optionA The first option for the market
+     * @param _optionB The second option for the market
+     * @param _duration Duration in seconds for which the market will be active
+     * @return marketId The ID of the newly created market
      */
     function createMarket(
-        string memory _question,
-        string memory _optionA,
-        string memory _optionB,
+        string calldata _question,  // Changed to calldata to save gas
+        string calldata _optionA,   // Changed to calldata to save gas
+        string calldata _optionB,   // Changed to calldata to save gas
         uint256 _duration
-    ) external returns (uint256) {
-        require(msg.sender == owner(), "Only owner can create markets");
-        require(_duration > 0, "Duration must be positive");
-        require(
-            bytes(_optionA).length > 0 && bytes(_optionB).length > 0,
-            "Options cannot be empty"
-        );
+    ) external onlyOwner returns (uint256 marketId) {
+        if (_duration < 1 hours || _duration > 30 days) revert InvalidDuration();
+        if (bytes(_question).length == 0) revert QuestionCannotBeEmpty();
+        if (bytes(_optionA).length == 0 || bytes(_optionB).length == 0) revert OptionsCannotBeEmpty();
 
-        uint256 marketId = marketCount++;
+        marketId = marketCount;
+        unchecked {
+            marketCount++;  // Safe to use unchecked here
+        }
+        
         Market storage market = markets[marketId];
-
         market.question = _question;
         market.optionA = _optionA;
         market.optionB = _optionB;
-        market.endTime = block.timestamp + _duration;
+        market.endTime = block.timestamp + _duration;  // Simplified - no assembly
         market.outcome = MarketOutcome.UNRESOLVED;
 
-        emit MarketCreated(
-            marketId,
-            _question,
-            _optionA,
-            _optionB,
-            market.endTime
-        );
-        return marketId;
+        emit MarketCreated(marketId, _question, _optionA, _optionB, market.endTime);
     }
 
     /**
-     * @notice Allows users to buy shares in a market.
-     * @param _marketId The ID of the market to buy shares in.
-     * @param _isOptionA True if buying shares for Option A, false for Option B.
-     * @param _amount The amount of shares to buy.
+     * @notice Allows users to buy shares in a market
+     * @param _marketId The ID of the market
+     * @param _isOptionA True for Option A, false for Option B
+     * @param _amount Amount of MXNB tokens to bet
      */
     function buyShares(
         uint256 _marketId,
         bool _isOptionA,
         uint256 _amount
-    ) external {
+    ) external nonReentrant {
         Market storage market = markets[_marketId];
-        require(
-            block.timestamp < market.endTime,
-            "Market trading period has ended"
-        );
-        require(!market.resolved, "Market already resolved");
-        require(_amount > 0, "Amount must be positive");
+        if (block.timestamp >= market.endTime) revert MarketTradingEnded();
+        if (market.resolved) revert MarketAlreadyResolved();
+        if (_amount < 1e18) revert MinimumBetRequired();
+        if (_amount > type(uint128).max) revert AmountTooLarge();
 
-        require(
-            bettingToken.transferFrom(msg.sender, address(this), _amount),
-            "Token transfer failed"
-        );
+        if (!bettingToken.transferFrom(msg.sender, address(this), _amount)) revert TokenTransferFailed();
 
+        // Cache user shares to reduce storage reads
+        UserShares storage userShares = market.userShares[msg.sender];
+        uint128 amount128 = uint128(_amount);
+        
+        // Simplified - no assembly
         if (_isOptionA) {
-            market.optionASharesBalance[msg.sender] += _amount;
-            market.totalOptionAShares += _amount;
+            userShares.optionA += amount128;
+            market.totalOptionAShares += amount128;
         } else {
-            market.optionBSharesBalance[msg.sender] += _amount;
-            market.totalOptionBShares += _amount;
+            userShares.optionB += amount128;
+            market.totalOptionBShares += amount128;
+        }
+
+        // Update total active market funds
+        unchecked {
+            totalActiveMarketFunds += _amount;  // Safe overflow check
         }
 
         emit SharesPurchased(_marketId, msg.sender, _isOptionA, _amount);
     }
 
     /**
-     * @notice Resolves a market by setting the outcome.
-     * @param _marketId The ID of the market to resolve.
-     * @param _outcome The outcome to set for the market.
+     * @notice Resolves a market by setting the outcome
+     * @param _marketId The ID of the market to resolve
+     * @param _outcome The outcome to set (OPTION_A, OPTION_B or CANCELLED)
      */
-    function resolveMarket(uint256 _marketId, MarketOutcome _outcome) external {
-        require(msg.sender == owner(), "Only owner can resolve markets");
+    function resolveMarket(uint256 _marketId, MarketOutcome _outcome) external onlyOwner {
         Market storage market = markets[_marketId];
-        require(block.timestamp >= market.endTime, "Market hasn't ended yet");
-        require(!market.resolved, "Market already resolved");
-        require(_outcome != MarketOutcome.UNRESOLVED, "Invalid outcome");
+        if (block.timestamp < market.endTime) revert MarketNotEnded();
+        if (market.resolved) revert MarketAlreadyResolved();
+        if (_outcome == MarketOutcome.UNRESOLVED) revert InvalidOutcome();
 
         market.outcome = _outcome;
         market.resolved = true;
 
+        // Update total active market funds
+        uint256 marketTotal = uint256(market.totalOptionAShares) + uint256(market.totalOptionBShares);
+        totalActiveMarketFunds -= marketTotal;
+
+        emit MarketResolved(_marketId, _outcome);
+    }
+    
+    /**
+     * @notice Emergency function to terminate and resolve a market early
+     * @dev Only owner can call this in exceptional circumstances
+     * @param _marketId The ID of the market to terminate
+     * @param _outcome The outcome to set (OPTION_A, OPTION_B or CANCELLED)
+     */
+    function emergencyResolveMarket(
+        uint256 _marketId, 
+        MarketOutcome _outcome
+    ) external onlyOwner {
+        Market storage market = markets[_marketId];
+        if (market.resolved) revert MarketAlreadyResolved();
+        if (_outcome == MarketOutcome.UNRESOLVED) revert InvalidOutcome();
+        if (block.timestamp >= market.endTime) revert UseRegularResolve();
+        
+        // Terminar inmediatamente
+        market.endTime = block.timestamp;
+        market.outcome = _outcome;
+        market.resolved = true;
+
+        // Update total active market funds
+        uint256 marketTotal = uint256(market.totalOptionAShares) + uint256(market.totalOptionBShares);
+        totalActiveMarketFunds -= marketTotal;
+
+        emit MarketTerminated(_marketId, _outcome);
         emit MarketResolved(_marketId, _outcome);
     }
 
     /**
-     * @notice Claims winnings for the caller if they participated in a resolved market.
-     * @param _marketId The ID of the market to claim winnings from.
+     * @notice Claims winnings for the caller in a resolved market
+     * @param _marketId The ID of the market to claim from
      */
-    function claimWinnings(uint256 _marketId) external {
+    function claimWinnings(uint256 _marketId) external nonReentrant {
         Market storage market = markets[_marketId];
-        require(market.resolved, "Market not resolved yet");
+        if (!market.resolved) revert MarketNotResolved();
+        if (market.hasClaimed[msg.sender]) revert AlreadyClaimed();
 
+        UserShares memory user = market.userShares[msg.sender];
         uint256 userShares;
-        uint256 winningShares;
-        uint256 losingShares;
+        uint256 totalWinningShares;
+        uint256 totalLosingShares;
 
         if (market.outcome == MarketOutcome.OPTION_A) {
-            userShares = market.optionASharesBalance[msg.sender];
-            winningShares = market.totalOptionAShares;
-            losingShares = market.totalOptionBShares;
-            market.optionASharesBalance[msg.sender] = 0;
+            userShares = user.optionA;
+            totalWinningShares = market.totalOptionAShares;
+            totalLosingShares = market.totalOptionBShares;
+            market.userShares[msg.sender].optionA = 0;
         } else if (market.outcome == MarketOutcome.OPTION_B) {
-            userShares = market.optionBSharesBalance[msg.sender];
-            winningShares = market.totalOptionBShares;
-            losingShares = market.totalOptionAShares;
-            market.optionBSharesBalance[msg.sender] = 0;
+            userShares = user.optionB;
+            totalWinningShares = market.totalOptionBShares;
+            totalLosingShares = market.totalOptionAShares;
+            market.userShares[msg.sender].optionB = 0;
+        } else if (market.outcome == MarketOutcome.CANCELLED) {
+            // Return original stake if market was cancelled
+            uint256 totalStake = uint256(user.optionA) + uint256(user.optionB);
+            if (totalStake == 0) revert NoStakeToRefund();
+            market.userShares[msg.sender] = UserShares(0, 0);
+            
+            if (!bettingToken.transfer(msg.sender, totalStake)) revert RefundFailed();
+            emit Claimed(_marketId, msg.sender, totalStake);
+            return;
         } else {
-            revert("Market outcome is not valid");
+            revert InvalidMarketOutcome();
         }
 
-        require(userShares > 0, "No winnings to claim");
+        if (userShares == 0) revert NoWinningsToClaim();
 
-        // Calculate the reward ratio
-        uint256 rewardRatio = (losingShares * 1e18) / winningShares; // Using 1e18 for precision
+        market.hasClaimed[msg.sender] = true;
 
-        // Calculate winnings: original stake + proportional share of losing funds
-        uint256 winnings = userShares + (userShares * rewardRatio) / 1e18;
-
-        require(
-            bettingToken.transfer(msg.sender, winnings),
-            "Token transfer failed"
-        );
+        uint256 winnings = calculateWinnings(userShares, totalWinningShares, totalLosingShares);
+        if (!bettingToken.transfer(msg.sender, winnings)) revert TokenTransferFailed();
 
         emit Claimed(_marketId, msg.sender, winnings);
     }
 
     /**
-     * @notice Returns detailed information about a specific market.
-     * @param _marketId The ID of the market to retrieve information for.
-     * @return question The market's question.
-     * @return optionA The first option for the market.
-     * @return optionB The second option for the market.
-     * @return endTime The end time of the market.
-     * @return outcome The outcome of the market.
-     * @return totalOptionAShares Total shares bought for Option A.
-     * @return totalOptionBShares Total shares bought for Option B.
-     * @return resolved Whether the market has been resolved.
+     * @dev Calculates winnings based on shares and market outcome - OPTIMIZED
+     */
+    function calculateWinnings(
+        uint256 userShares,
+        uint256 totalWinningShares,
+        uint256 totalLosingShares
+    ) internal view returns (uint256) {
+        if (totalWinningShares == 0) return userShares;
+        
+        // More gas-efficient calculation
+        uint256 proportionalWinnings = (userShares * totalLosingShares) / totalWinningShares;
+        uint256 winnings = userShares + proportionalWinnings;
+        
+        // Apply platform fee if exists
+        if (platformFeePercentage > 0) {
+            unchecked {
+                uint256 fee = (winnings * platformFeePercentage) / 10000;
+                winnings -= fee;
+            }
+        }
+        
+        return winnings;
+    }
+
+    /**
+     * @notice Updates the platform fee percentage
+     * @param _newFeePercentage New fee percentage (1 = 0.01%)
+     */
+    function updatePlatformFee(uint256 _newFeePercentage) external onlyOwner {
+        if (_newFeePercentage > 500) revert FeeExceedsMaximum();
+        platformFeePercentage = uint128(_newFeePercentage);
+        emit FeeUpdated(_newFeePercentage);
+    }
+
+    /**
+     * @notice Updates the fee collector address
+     * @param _newFeeCollector New address to receive fees
+     */
+    function updateFeeCollector(address _newFeeCollector) external onlyOwner {
+        if (_newFeeCollector == address(0)) revert InvalidAddress();
+        feeCollector = _newFeeCollector;
+        emit FeeCollectorUpdated(_newFeeCollector);
+    }
+
+    /**
+     * @notice Withdraws collected fees to the fee collector - OPTIMIZED VERSION
+     */
+    function withdrawFees() external {
+        if (msg.sender != feeCollector) revert OnlyFeeCollectorCanWithdraw();
+        
+        uint256 balance = bettingToken.balanceOf(address(this));
+        if (balance == 0) revert NoFeesToWithdraw();
+        
+        // Use cached total instead of expensive loop
+        uint256 availableFees = balance - totalActiveMarketFunds;
+        if (availableFees == 0) revert NoFeesAvailable();
+        
+        if (!bettingToken.transfer(feeCollector, availableFees)) revert TransferFailed();
+    }
+
+    /**
+     * @notice Returns detailed information about a market
      */
     function getMarketInfo(
         uint256 _marketId
@@ -257,89 +402,49 @@ contract PredictionMarket is Ownable, ReentrancyGuard {
             market.optionB,
             market.endTime,
             market.outcome,
-            market.totalOptionAShares,
-            market.totalOptionBShares,
+            uint256(market.totalOptionAShares),
+            uint256(market.totalOptionBShares),
             market.resolved
         );
     }
 
     /**
-     * @notice Returns the shares balance for a specific user in a market.
-     * @param _marketId The ID of the market to check.
-     * @param _user The address of the user to check balance for.
-     * @return optionAShares The user's shares for Option A.
-     * @return optionBShares The user's shares for Option B.
+     * @notice Returns user's shares in a market
      */
-    function getSharesBalance(
+    function getUserShares(
         uint256 _marketId,
         address _user
     ) external view returns (uint256 optionAShares, uint256 optionBShares) {
         Market storage market = markets[_marketId];
-        return (
-            market.optionASharesBalance[_user],
-            market.optionBSharesBalance[_user]
-        );
+        UserShares memory shares = market.userShares[_user];
+        return (uint256(shares.optionA), uint256(shares.optionB));
     }
 
     /**
-     * @notice Allows multiple users to claim their winnings in a batch for a given market.
-     * @param _marketId The ID of the market for which winnings are claimed.
-     * @param _users Array of user addresses who wish to claim their winnings.
+     * @notice Checks if user has claimed winnings for a market
      */
-    function batchClaimWinnings(
+    function hasClaimed(uint256 _marketId, address _user) external view returns (bool) {
+        return markets[_marketId].hasClaimed[_user];
+    }
+
+    /**
+     * @notice Calculates potential winnings for a user in an unresolved market
+     */
+    function calculatePotentialWinnings(
         uint256 _marketId,
-        address[] calldata _users
-    ) external nonReentrant {
+        address _user
+    ) external view returns (uint256 potentialWinnings) {
         Market storage market = markets[_marketId];
-        require(market.resolved, "Market not resolved yet");
-
-        for (uint256 i = 0; i < _users.length; i++) {
-            address user = _users[i];
-
-            // Skip if the user already claimed
-            if (market.hasClaimed[user]) {
-                continue;
-            }
-
-            uint256 userShares;
-            uint256 winningShares;
-            uint256 losingShares;
-
-            // Determine user shares and winning/losing shares based on the outcome
-            if (market.outcome == MarketOutcome.OPTION_A) {
-                userShares = market.optionASharesBalance[user];
-                winningShares = market.totalOptionAShares;
-                losingShares = market.totalOptionBShares;
-                market.optionASharesBalance[user] = 0; //Reset user shares after claim
-            } else if (market.outcome == MarketOutcome.OPTION_B) {
-                userShares = market.optionBSharesBalance[user];
-                winningShares = market.totalOptionBShares;
-                losingShares = market.totalOptionAShares;
-                market.optionBSharesBalance[user] = 0; // Reset user's shares after claim
-            } else {
-                revert("Market outcome is not valid");
-            }
-
-            // We need to ensure the user has winnings to claim
-            if (userShares == 0) {
-                continue;
-            }
-
-            // Calculate the reward ratio and user's winnings
-            uint256 rewardRatio = (losingShares * 1e18) / winningShares;
-            uint256 winnings = userShares + (userShares * rewardRatio) / 1e18;
-
-            // Mark the user as having claimed winnings
-            market.hasClaimed[user] = true;
-
-            // Transfer winnings to the user
-            require(
-                bettingToken.transfer(user, winnings),
-                "Token transfer failed"
-            );
-
-            // emit and event for each user who claimed winnings
-            emit Claimed(_marketId, user, winnings);
+        if (market.resolved) revert MarketAlreadyResolved();
+        
+        UserShares memory user = market.userShares[_user];
+        
+        if (user.optionA > 0) {
+            return calculateWinnings(uint256(user.optionA), uint256(market.totalOptionAShares), uint256(market.totalOptionBShares));
+        } else if (user.optionB > 0) {
+            return calculateWinnings(uint256(user.optionB), uint256(market.totalOptionBShares), uint256(market.totalOptionAShares));
         }
+        
+        return 0;
     }
 }

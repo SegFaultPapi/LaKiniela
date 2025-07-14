@@ -6,7 +6,7 @@ import "@rainbow-me/rainbowkit/styles.css"
 import { WalletProvider } from "@/components/wallet-provider"
 import { Navbar } from "@/components/navbar"
 import { ChatbaseWidget } from "@/components/chatbase-widget"
-
+import { ClientDiagnostics } from "@/components/client-diagnostics"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -38,7 +38,7 @@ export default function RootLayout({
           <Navbar />
           <main className="min-h-screen bg-background">{children}</main>
           <ChatbaseWidget chatbotId="9yg5No15K56pB7G1AbONq" />
-
+          <ClientDiagnostics />
         </WalletProvider>
       </body>
     </html>

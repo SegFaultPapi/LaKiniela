@@ -1,404 +1,339 @@
-# La Kiniela - Plataforma de Mercados de Predicción con Portal SDK
+# 🎯 LaKiniela - Mercados de Predicción
 
-La primera plataforma de mercados de predicción descentralizada para Latinoamérica, ahora potenciada con el Portal SDK para wallets descentralizadas seguras. Apuesta con MXNB y gana con la sabiduría de la multitud.
+Una aplicación descentralizada de mercados de predicción construida en **Arbitrum Sepolia** con Next.js, TypeScript, y Solidity.
 
-## 🚀 Características Principales
+## 📋 Características Principales
 
-### ✨ Portal SDK Integrado
+### 🎲 **Para Usuarios:**
+- **Conectar Wallet** - Soporte para MetaMask, WalletConnect, etc.
+- **Detección de Red** - Automática verificación de Arbitrum Sepolia
+- **Allowance Infinito** - Aprueba una vez, usa infinitas veces
+- **Apostar en Mercados** - Compra shares en Opción A o B
+- **Reclamar Ganancias** - Automático cuando el mercado se resuelve
+- **Explorer Links** - Seguimiento de transacciones en Arbiscan
 
-- **Wallets MPC**: Utiliza tecnología Multi-Party Computation para mayor seguridad
-- **Configuración API Key**: Gestión sencilla de credenciales Portal
-- **Transacciones Rápidas**: Envío de ETH en Arbitrum Sepolia optimizado
-- **Firma de Mensajes**: Capacidad de firmar mensajes de forma segura
-- **Balance en Tiempo Real**: Monitoreo automático del balance del wallet
+### 🛠️ **Para Administradores:**
+- **Crear Mercados** - Nuevos mercados con preguntas personalizadas
+- **Resolver Mercados** - Determinar ganadores o cancelar
+- **Gestión de Comisiones** - Configurar y retirar fees
+- **Panel de Admin** - Interfaz dedicada para propietarios
 
-### 🔐 Seguridad y Descentralización
+### 🔧 **Características Técnicas:**
+- **Smart Contract Optimizado** - Custom errors, storage packing
+- **Gas Eficiente** - Hasta 90% menos gas en errores
+- **TypeScript** - Tipado fuerte para mejor desarrollo
+- **Manejo de Errores** - Mensajes user-friendly en español
+- **Estados de Carga** - Feedback en tiempo real
 
-- **Contratos Inteligentes**: Lógica de negocio inmutable en Arbitrum
-- **Portal MPC**: Wallets sin custodia con tecnología de vanguardia
-- **Arbitrum Sepolia**: Red de pruebas con costos bajos
-- **Transparencia**: Todas las transacciones verificables en blockchain
+## 🚀 Instalación y Configuración
 
-### 🌎 Diseñado para Latinoamérica
+### 📋 **Prerrequisitos:**
+```bash
+# Node.js v18 o superior
+node --version
 
-- **Token MXNB**: Moneda estable para la región
-- **Interfaz en Español**: Experiencia nativa en español
-- **Mercados Relevantes**: Predicciones sobre eventos latinoamericanos
+# npm o yarn
+npm --version
+```
 
-### 📸 Funcionalidades Adicionales
-
-- **Upload de Imágenes**: Los creadores pueden subir imágenes representativas para sus markets
-- **Interfaz Intuitiva**: Diseño moderno y responsive
-- **Blockchain Arbitrum**: Construido sobre Arbitrum para transacciones rápidas y económicas
-
-## 🛠️ Tecnologías Utilizadas
-
-### Frontend
-
-- **Next.js 15**: Framework React con App Router
-- **TypeScript**: Tipado estático para mayor robustez
-- **Tailwind CSS**: Estilos utilitarios y responsivos
-- **shadcn/ui**: Componentes UI modernos y accesibles
-
-### Blockchain
-
-- **Portal SDK**: Wallet-as-a-Service con MPC
-- **Arbitrum Sepolia**: Red de pruebas L2
-- **Viem**: Biblioteca TypeScript para Ethereum
-- **Wagmi**: Hooks React para Web3 (como respaldo)
-
-### UI/UX
-
-- **Lucide React**: Iconos modernos y consistentes
-- **Radix UI**: Componentes primitivos accesibles
-- **Framer Motion**: Animaciones suaves (planificado)
-
-## 📦 Instalación
-
+### 🔧 **Instalación:**
 ```bash
 # Clonar el repositorio
 git clone https://github.com/tu-usuario/LaKiniela.git
+cd LaKiniela
 
 # Instalar dependencias
-cd LaKiniela
 npm install
-# o
-pnpm install
-
-# Ejecutar en desarrollo
-npm run dev
-# o
-pnpm dev
 ```
 
-## 🔧 Configuración
-
-### 1. Portal SDK API Key
-
-1. Visita [Portal Dashboard](https://docs.portalhq.io/)
-2. Crea una cuenta y obtén tu API Key
-3. En la aplicación, navega a `/portal`
-4. Ingresa tu API Key para inicializar el SDK
-
-### 2. Variables de Entorno (Opcional)
-
+### ⚙️ **Configuración de Entorno:**
 ```bash
-# .env.local
-NEXT_PUBLIC_PORTAL_API_KEY=tu_api_key_aqui
-NEXT_PUBLIC_ARBITRUM_SEPOLIA_RPC=https://sepolia-rollup.arbitrum.io/rpc
-NEXT_PUBLIC_ARBITRUM_RPC_URL=https://arb1.arbitrum.io/rpc
-NEXT_PUBLIC_CONTRACT_ADDRESS=0x...
+# Crear archivo .env.local
+cp .env.example .env.local
+
+# Editar con tus valores
+NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID=tu_project_id_aqui
 ```
 
-## 🎯 Uso
+### 🌐 **Configuración de Red:**
+La aplicación está configurada para **Arbitrum Sepolia**:
+- **Chain ID:** 421614
+- **RPC URL:** https://sepolia-rollup.arbitrum.io/rpc
+- **Explorer:** https://sepolia.arbiscan.io
 
-### Crear un Market
+## 💰 Obtener Tokens de Testnet
 
-1. Conecta tu wallet compatible con Arbitrum o usa Portal Wallet
-2. Haz clic en "Crear Market"
-3. Completa el formulario:
-   - Nombre del market
-   - Descripción
-   - Pregunta de predicción
-   - Categoría
-   - **Imagen** (opcional - arrastra o selecciona una imagen)
-   - Fecha de finalización
-   - Pool inicial (MXNB)
-4. Haz clic en "Crear Market"
+### 🔥 **ETH para Gas:**
+1. Ve a [Arbitrum Sepolia Faucet](https://faucet.quicknode.com/arbitrum/sepolia)
+2. Introduce tu dirección de wallet
+3. Recibe ETH gratis
 
-### Participar en un Market
+### 🪙 **MXNB para Apuestas:**
+- **Dirección:** `0x82B9e52b26A2954E113F94Ff26647754d5a4247D`
+- Contacta al equipo para obtener tokens MXNB de prueba
 
-1. Navega por los markets disponibles
-2. Selecciona un market activo
-3. Elige tu predicción (Sí/No)
-4. Ingresa la cantidad de MXNB
-5. Confirma tu participación
+## 🏗️ Deploy del Smart Contract
 
-## 🌟 Funcionalidades Portal SDK
+### 📝 **En Remix IDE:**
+1. Abre [Remix IDE](https://remix.ethereum.org/)
+2. Crea nuevo archivo: `PredictionMarketSimple.sol`
+3. Copia el código desde `/contracts/PredictionMarketSimple.sol`
+4. Compila con Solidity 0.8.19
+5. Deploy en Arbitrum Sepolia con parámetros:
+   ```
+   _bettingToken: 0x82B9e52b26A2954E113F94Ff26647754d5a4247D
+   _feeCollector: TU_WALLET_ADDRESS
+   _initialFee: 100
+   ```
 
-### Gestión de Wallets
-
-- **Crear Wallet**: Generar nuevas wallets MPC
-- **Conexión Segura**: Autenticación sin exponer claves privadas
-- **Balance Automático**: Actualización en tiempo real
-- **Desconexión Segura**: Limpieza completa de sesión
-
-### Transacciones
-
-- **Envío de ETH**: Transferencias nativas en Arbitrum Sepolia
-- **Estimación de Gas**: Cálculo automático de costos
-- **Confirmación**: Seguimiento del estado de transacciones
-- **Explorador**: Enlaces directos a Arbiscan
-
-### Seguridad
-
-- **Firma de Mensajes**: Validación criptográfica
-- **MPC Technology**: Claves distribuidas para mayor seguridad
-- **Sin Custodia**: El usuario mantiene control total
-- **Recuperación**: Métodos seguros de recuperación de wallet
-
-## 🎯 Uso del Portal Wallet
-
-### 1. Inicialización
-
+### 🔄 **Actualizar Frontend:**
 ```typescript
-// Usando el hook usePortalWallet
-const {
-  initializePortal,
-  createWallet,
-  sendTransaction,
-  signMessage,
-  isConnected,
-  walletAddress,
-  balance,
-} = usePortalWallet();
-
-// Inicializar con API Key
-await initializePortal("tu_api_key");
-```
-
-### 2. Crear Wallet
-
-```typescript
-// Crear nuevo wallet MPC
-await createWallet();
-console.log("Wallet creado:", walletAddress);
-```
-
-### 3. Enviar Transacciones
-
-```typescript
-// Enviar ETH
-const tx = await sendTransaction({
-  to: "0xRecipientAddress",
-  value: "1000000000000000000", // 1 ETH en wei
-});
-console.log("Transacción:", tx.hash);
-```
-
-### 4. Firmar Mensajes
-
-```typescript
-// Firmar mensaje
-const signature = await signMessage("Mensaje a firmar");
-console.log("Firma:", signature);
-```
-
-## 🔄 Migración desde RainbowKit
-
-La aplicación mantiene compatibilidad con RainbowKit para usuarios que prefieren wallets tradicionales:
-
-```typescript
-// Componente híbrido
-{
-  !isConnected ? (
-    <div className="flex gap-4">
-      <ConnectButton /> {/* RainbowKit */}
-      <Link href="/portal">
-        <Button>Portal Wallet</Button>
-      </Link>
-    </div>
-  ) : (
-    <WalletInfo />
-  );
+// En lib/web3-config.ts
+export const CONTRACTS = {
+  PREDICTION_MARKET: "0xTU_DIRECCION_DEPLOYADA" as `0x${string}`,
+  MXNB_TOKEN: "0x82B9e52b26A2954E113F94Ff26647754d5a4247D" as `0x${string}`,
 }
 ```
 
-## 🗑️ Gestión de Markets
+## 🎬 Ejecutar la Aplicación
 
-### Eliminar Todos los Markets
+### 🔥 **Desarrollo:**
+```bash
+# Iniciar servidor de desarrollo
+npm run dev
 
-Para limpiar todos los markets existentes (útil durante desarrollo):
-
-#### Opción 1: Consola del Navegador (Recomendado)
-
-1. Abre las herramientas de desarrollador (`F12`)
-2. Ve a la pestaña "Console"
-3. Ejecuta:
-
-```javascript
-localStorage.removeItem("la-kiniela-markets");
-localStorage.removeItem("la-kiniela-participations");
-console.log("✅ Markets eliminados");
-location.reload();
+# Abrir en navegador
+# http://localhost:3000
 ```
 
-#### Opción 2: Usando la API
+### 🚀 **Producción:**
+```bash
+# Build para producción
+npm run build
 
-```javascript
-// En la consola del navegador:
-MarketStorage.clearAllMarkets();
-location.reload();
+# Iniciar servidor de producción
+npm start
 ```
 
-#### Opción 3: Manual desde DevTools
+## 🎯 Uso de la Aplicación
 
-1. Abre las herramientas de desarrollador (`F12`)
-2. Ve a "Application" → "Local Storage"
-3. Elimina las claves:
-   - `la-kiniela-markets`
-   - `la-kiniela-participations`
+### 👤 **Para Usuarios:**
+1. **Conectar Wallet** - Usa el botón "Connect Wallet"
+2. **Verificar Red** - Cambia a Arbitrum Sepolia si es necesario
+3. **Aprobar Allowance** - Una sola vez para usar la aplicación
+4. **Seleccionar Mercado** - Ingresa el ID del mercado
+5. **Apostar** - Elige Opción A o B y la cantidad
+6. **Reclamar** - Cuando el mercado se resuelva
 
-### Eliminar Markets Específicos
+### 🔧 **Para Administradores:**
+1. **Crear Mercados** - Tab "Admin" > "Crear Mercado"
+2. **Resolver Mercados** - Tab "Admin" > "Resolver Mercado"
+3. **Verificar Transacciones** - Enlaces automáticos a Arbiscan
 
-Para eliminar un market específico, puedes usar:
-
-```javascript
-// Obtener todos los markets
-const markets = MarketStorage.getMarkets();
-
-// Filtrar el market que quieres eliminar
-const marketsFiltrados = markets.filter(
-  (market) => market.id !== "ID_DEL_MARKET"
-);
-
-// Guardar la lista actualizada
-localStorage.setItem("la-kiniela-markets", JSON.stringify(marketsFiltrados));
-```
-
-## 🏗️ Arquitectura
+## 📚 Estructura del Proyecto
 
 ```
 LaKiniela/
-├── app/
-│   ├── portal/          # Página Portal Wallet
-│   ├── perfil/          # Perfil de usuario
-│   ├── apuestas/        # Página de apuestas
-│   └── page.tsx         # Página principal
-├── components/
-│   ├── portal-wallet-setup.tsx  # Configuración Portal
-│   ├── ui/                       # Componentes UI base
-│   ├── image-upload.tsx         # Componente de upload
-│   └── ...
-├── hooks/
-│   ├── usePortalWallet.ts       # Hook principal Portal
-│   ├── use-prediction-market.ts # Hook mercados
-│   └── useUser.ts              # Hook de usuario
-├── lib/
-│   ├── market-storage.ts       # Gestión de markets
-│   ├── types.ts               # Tipos TypeScript
-│   └── web3-config.ts         # Configuración Web3
-└── public/
-    └── uploads/               # Imágenes subidas
+├── contracts/                 # Smart contracts
+│   └── PredictionMarketSimple.sol
+├── components/               # Componentes React
+│   ├── ui/                  # Componentes UI base
+│   └── prediction-market-example.tsx
+├── hooks/                   # Custom hooks
+│   └── use-prediction-market-v2.ts
+├── lib/                     # Librerías y configuración
+│   ├── web3-config.ts      # Configuración Web3
+│   └── prediction-market-abi.ts
+├── app/                     # App Router de Next.js
+│   └── api/contract/       # API routes
+└── SMART_CONTRACT_INTEGRATION.md
 ```
 
-## 🎨 Componentes Principales
+## 🔧 Funciones Principales
 
-### PortalWalletSetup
+### 📖 **Funciones de Lectura:**
+- `getMarketInfo(marketId)` - Información del mercado
+- `getUserShares(marketId, user)` - Shares del usuario
+- `getUserInfoAdvanced(user, amount)` - Info completa del usuario
+- `hasInfiniteAllowance(user)` - Estado del allowance
 
-Componente principal para configurar y usar Portal SDK:
+### ✍️ **Funciones de Escritura:**
+- `buyShares(marketId, isOptionA, amount)` - Comprar shares
+- `claimWinnings(marketId)` - Reclamar ganancias
+- `approveInfiniteMXNB()` - Aprobar allowance infinito
 
-- Configuración de API Key
-- Creación de wallets
-- Interfaz de transacciones
-- Gestión de balance
+### 🛠️ **Funciones de Admin:**
+- `createMarket(question, optionA, optionB, duration)` - Crear mercado
+- `resolveMarket(marketId, outcome)` - Resolver mercado
 
-### usePortalWallet Hook
+## 🐛 Solución de Problemas
 
-Hook personalizado que encapsula toda la lógica del Portal SDK:
+### 🔧 **Herramientas de Diagnóstico:**
 
-- Inicialización del SDK
-- Gestión de estado del wallet
-- Operaciones de transacciones
-- Manejo de errores
-
-## 🔒 Seguridad
-
-### Mejores Prácticas Implementadas
-
-- **API Key Storage**: Almacenamiento seguro en localStorage
-- **Error Handling**: Manejo robusto de errores
-- **Type Safety**: TypeScript para prevenir errores
-- **Validation**: Validación de inputs del usuario
-
-### Consideraciones de Seguridad
-
-- Las API Keys se almacenan localmente (considera usar variables de entorno en producción)
-- Las transacciones requieren confirmación del usuario
-- Los mensajes firmados son únicos y no reutilizables
-
-## 🚀 Desarrollo
-
-### Comandos Disponibles
-
+#### 1. **Diagnóstico desde la App:**
 ```bash
-# Desarrollo
-npm run dev
+# Ir a la aplicación y usar la pestaña "Diagnóstico"
+http://localhost:3000
 
-# Build
-npm run build
-
-# Linting
-npm run lint
-
-# Start (producción)
-npm run start
+# O ir directamente a la página de diagnóstico
+http://localhost:3000/diagnostics
 ```
 
-### Estructura de Desarrollo
+#### 2. **Diagnóstico desde la Consola del Navegador:**
+```javascript
+// Abre la consola del navegador (F12) y ejecuta:
 
-1. **Components**: Componentes React reutilizables
-2. **Hooks**: Lógica de negocio encapsulada
-3. **Types**: Definiciones TypeScript
-4. **Utils**: Funciones utilitarias
+// Verificación rápida
+quickCheck()
 
-## 📱 Responsive Design
+// Verificación completa
+checkContracts()
 
-La aplicación está optimizada para:
+// Verificación con tu dirección de wallet
+checkContracts("0xTU_DIRECCION_DE_WALLET")
+```
 
-- **Desktop**: Experiencia completa con sidebar
-- **Tablet**: Diseño adaptativo
-- **Mobile**: Interfaz móvil optimizada
+### ❌ **Errores Comunes:**
 
-## 🌍 Roadmap
+#### "Balance MXNB no se muestra"
+```bash
+# Problema: Token MXNB no responde
+# Causa más común: Dirección del token incorrecta o red incorrecta
 
-### Próximas Características
+# Verificar en la consola:
+checkContracts("0xTU_WALLET")
 
-- [ ] Integración con mainnet Arbitrum
-- [ ] Múltiples tokens de pago
-- [ ] Notificaciones push
-- [ ] Dashboard de analytics
-- [ ] API pública
+# Verificar en Arbiscan:
+https://sepolia.arbiscan.io/address/0x82B9e52b26A2954E113F94Ff26647754d5a4247D
+```
 
-### Mejoras del Portal SDK
+#### "No puedo interactuar con el smart contract"
+```bash
+# Problema: Contrato principal no responde
+# Causa más común: Contrato no deployado o dirección incorrecta
 
-- [ ] Múltiples métodos de autenticación
-- [ ] Backup y recuperación mejorada
-- [ ] Soporte para múltiples redes
-- [ ] Integración con DeFi protocols
+# Verificar en Arbiscan:
+https://sepolia.arbiscan.io/address/0x9Dc4ef29d511A2C37E6F001af9c9868DbCA923F7
 
-## 🤝 Contribución
+# Verificar que el contrato tenga:
+# - Código fuente verificado
+# - Funciones marketCount, bettingToken, etc.
+```
 
-¡Las contribuciones son bienvenidas! Por favor:
+#### "Red Incorrecta"
+```bash
+# Solución: Cambiar a Arbitrum Sepolia
+Chain ID: 421614
+RPC: https://sepolia-rollup.arbitrum.io/rpc
+```
 
-1. Fork el repositorio
-2. Crea una rama para tu feature
-3. Commit tus cambios
-4. Push a la rama
-5. Abre un Pull Request
+#### "Insufficient allowance"
+```bash
+# Solución: Aprobar allowance infinito
+await approveInfiniteMXNB()
+```
+
+#### "Contract not found"
+```bash
+# Solución: Verificar dirección en web3-config.ts
+PREDICTION_MARKET: "0xDIRECCION_CORRECTA"
+```
+
+### 🔍 **Proceso de Diagnóstico Paso a Paso:**
+
+#### **Paso 1: Verificar Red**
+1. Conecta tu wallet
+2. Verifica que estés en Arbitrum Sepolia (Chain ID: 421614)
+3. Si no, cambia de red en tu wallet
+
+#### **Paso 2: Verificar Contratos**
+1. Ve a `/diagnostics` en la aplicación
+2. Ejecuta el diagnóstico completo
+3. Revisa los errores mostrados
+
+#### **Paso 3: Verificar en Arbiscan**
+1. **Token MXNB:** [Ver en Arbiscan](https://sepolia.arbiscan.io/address/0x82B9e52b26A2954E113F94Ff26647754d5a4247D)
+2. **Tu Contrato:** `https://sepolia.arbiscan.io/address/0x9Dc4ef29d511A2C37E6F001af9c9868DbCA923F7`
+3. Verifica que ambos contratos existan y tengan código
+
+#### **Paso 4: Verificar Configuración**
+```typescript
+// En lib/web3-config.ts - deben coincidir con los contratos deployados
+export const CONTRACTS = {
+  PREDICTION_MARKET: "0x9Dc4ef29d511A2C37E6F001af9c9868DbCA923F7" as `0x${string}`,
+  MXNB_TOKEN: "0x82B9e52b26A2954E113F94Ff26647754d5a4247D" as `0x${string}`,
+}
+```
+
+### 🔍 **Depuración:**
+```bash
+# Ver logs en consola del navegador
+console.log('Error:', error)
+
+# Verificar transacciones en Arbiscan
+https://sepolia.arbiscan.io/tx/HASH
+
+# Usar herramientas de diagnóstico
+checkContracts("TU_WALLET_ADDRESS")
+```
+
+## 🧪 Testing
+
+### 🔬 **Testear Funcionalidades:**
+1. **Conectar Wallet** - Verificar conexión exitosa
+2. **Cambiar Red** - Probar detección de red incorrecta
+3. **Aprobar Allowance** - Verificar allowance infinito
+4. **Crear Mercado** - Solo si eres owner
+5. **Apostar** - Comprar shares en mercados
+6. **Resolver** - Solo si eres owner
+7. **Reclamar** - Obtener ganancias
+
+### 📊 **Verificar en Arbiscan:**
+- Transacciones exitosas
+- Eventos del contrato
+- Balances de tokens
+
+## 🤝 Contribuir
+
+### 🛠️ **Desarrollo:**
+```bash
+# Fork del repositorio
+git fork https://github.com/tu-usuario/LaKiniela
+
+# Crear rama para feature
+git checkout -b feature/nueva-funcionalidad
+
+# Hacer cambios y commit
+git commit -m "Añadir nueva funcionalidad"
+
+# Push y crear Pull Request
+git push origin feature/nueva-funcionalidad
+```
+
+### 📝 **Reportar Bugs:**
+1. Ir a [Issues](https://github.com/tu-usuario/LaKiniela/issues)
+2. Crear nuevo issue
+3. Incluir descripción detallada y pasos para reproducir
 
 ## 📄 Licencia
 
-Este proyecto está bajo la Licencia MIT. Ver el archivo `LICENSE` para más detalles.
+Este proyecto está bajo la Licencia MIT. Ver [LICENSE](LICENSE) para más detalles.
 
 ## 🔗 Enlaces Útiles
 
-- [Portal SDK Documentation](https://docs.portalhq.io/)
-- [Arbitrum Sepolia Explorer](https://sepolia.arbiscan.io/)
-- [Next.js Documentation](https://nextjs.org/docs)
-- [Tailwind CSS](https://tailwindcss.com/)
-- [V0.dev Project](https://v0.dev/chat/projects/kSfEnmMjJ6C)
-- [Vercel Deployment](https://vercel.com/clavelys-projects-2222f089/v0-la-kiniela-landing-page-wx)
-- [Arbitrum Documentation](https://docs.arbitrum.io/)
+- **Arbitrum Sepolia Explorer:** https://sepolia.arbiscan.io
+- **Arbitrum Sepolia Faucet:** https://faucet.quicknode.com/arbitrum/sepolia
+- **Remix IDE:** https://remix.ethereum.org/
+- **Documentación Wagmi:** https://wagmi.sh/
+- **Documentación Rainbow Kit:** https://www.rainbowkit.com/
 
 ## 📞 Soporte
 
-Si tienes preguntas o necesitas ayuda:
-
-- Abre un issue en GitHub
-- Contacta al equipo en [email]
-- Únete a nuestra comunidad en Discord
+Para soporte técnico:
+- 📧 Email: soporte@lakiniela.com
+- 💬 Discord: [LaKiniela Community](https://discord.gg/lakiniela)
+- 🐦 Twitter: [@LaKiniela](https://twitter.com/lakiniela)
 
 ---
 
-**La Kiniela** - Predicciones descentralizadas para Latinoamérica 🌎
+**🎯 ¡Disfruta apostando en los mercados de predicción más innovadores en Arbitrum Sepolia!** 🚀

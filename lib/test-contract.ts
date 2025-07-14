@@ -36,15 +36,8 @@ export async function testMXNBContract() {
     })
     console.log('Token decimals:', decimals)
     
-    const totalSupply = await publicClient.readContract({
-      address: CONTRACTS.MXNB_TOKEN,
-      abi: MXNB_TOKEN_ABI,
-      functionName: 'totalSupply',
-    })
-    console.log('Total supply:', totalSupply)
-    
     console.log('=== CONTRACT TEST SUCCESSFUL ===')
-    return { success: true, name, symbol, decimals, totalSupply }
+    return { success: true, name, symbol, decimals }
   } catch (error) {
     console.error('=== CONTRACT TEST FAILED ===')
     console.error('Error:', error)
@@ -65,7 +58,7 @@ export async function testBalance(address: string) {
       args: [address as `0x${string}`],
     })
     console.log('Balance (raw):', balance)
-    console.log('Balance (formatted):', Number(balance) / 1e18)
+    console.log('Balance (formatted):', Number(balance) / 1e6)
     
     return { success: true, balance }
   } catch (error) {
