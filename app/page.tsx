@@ -335,6 +335,53 @@ export default function InicioPage() {
     logout()
   }
 
+  // Función para limpiar datos del contrato anterior
+  const limpiarDatosContratoAnterior = () => {
+    console.log("🧹 Limpiando datos del contrato anterior...")
+    
+    // Limpiar todas las claves relacionadas con markets
+    const keysToRemove = [
+      'la-kiniela-markets',
+      'la-kiniela-participations',
+      'la-kiniela-market-images',
+      'la-kiniela-market-descriptions',
+      'la-kiniela-market-categories'
+    ]
+    
+    // Limpiar localStorage
+    keysToRemove.forEach(key => {
+      localStorage.removeItem(key)
+      console.log(`🗑️ Eliminado: ${key}`)
+    })
+    
+    // También limpiar cualquier clave que contenga direcciones de contratos anteriores
+    const allKeys = Object.keys(localStorage)
+    allKeys.forEach(key => {
+      if (key.includes('0x') && key.includes('la-kiniela')) {
+        // Si no es el contrato actual, eliminarlo
+        if (!key.includes(CONTRACTS.PREDICTION_MARKET.toLowerCase())) {
+          localStorage.removeItem(key)
+          console.log(`🗑️ Eliminado contrato anterior: ${key}`)
+        }
+      }
+    })
+    
+    console.log("✅ Limpieza completada")
+    
+    // Refrescar datos del nuevo contrato
+    setTimeout(() => {
+      refetchMarketCount()
+      loadAllMarkets()
+      refetchBalance()
+    }, 1000)
+    
+    toast({
+      title: "🧹 Datos Limpiados",
+      description: "Se han eliminado los datos del contrato anterior. Cargando nuevo contrato...",
+      duration: 5000,
+    })
+  }
+
   // Función de debug para categorías
   const debugCategories = () => {
     console.log("🐛 === DEBUG DE CATEGORÍAS ===")
@@ -733,6 +780,14 @@ export default function InicioPage() {
                   <div className="flex items-center gap-4 text-sm mt-3">
                     <span>Balance: <strong>{balance} MXNB</strong></span>
                     <span>Markets: <strong>{marketCount}</strong></span>
+                    <Button 
+                      onClick={limpiarDatosContratoAnterior} 
+                      size="sm" 
+                      variant="outline"
+                      className="border-red-200 hover:bg-red-50 text-red-600"
+                    >
+                      🧹 Limpiar Contrato Anterior
+                    </Button>
                   </div>
                 </div>
               )}

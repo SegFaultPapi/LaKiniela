@@ -4,7 +4,7 @@ import { PREDICTION_MARKET_SIMPLE_ABI } from './prediction-market-abi'
 
 // ==================== DIRECCIONES DE CONTRATOS ====================
 export const CONTRACTS = {
-  PREDICTION_MARKET: "0x232f6a25665255267A4E2F74D3358056dACB4C42" as `0x${string}`, // Nuevo contrato con emergencyResolveMarket
+  PREDICTION_MARKET: "0x03B8eFf9866b7Ab82bf0263B64299dF4ba8117D7" as `0x${string}`, // Nuevo contrato con emergencyResolveMarket
   MXNB_TOKEN: "0x82B9e52b26A2954E113F94Ff26647754d5a4247D" as `0x${string}`,
 }
 
