@@ -64,6 +64,7 @@ import { ConnectButton } from "@rainbow-me/rainbowkit"
 import { useToast } from "@/hooks/use-toast"
 import { MarketImageStorage } from "@/lib/market-images"
 import { MarketDescriptionStorage } from "@/lib/market-descriptions"
+import { MarketCategoryStorage } from "@/lib/market-categories"
 import { ImageSyncManager } from "@/components/image-sync-manager"
 import { CONTRACTS, MIN_MARKET_DURATION, MAX_MARKET_DURATION, CURRENT_CONTRACT_ADDRESS } from "@/lib/contracts-config"
 
@@ -334,6 +335,19 @@ export default function InicioPage() {
     logout()
   }
 
+  // Función de debug para categorías
+  const debugCategories = () => {
+    console.log("🐛 === DEBUG DE CATEGORÍAS ===")
+    MarketCategoryStorage.debugCategories()
+    
+    // También mostrar events actuales
+    console.log("📋 === EVENTS ACTUALES ===")
+    eventosDisponibles.forEach(evento => {
+      console.log(`Event ${evento.id}: "${evento.nombre}" - Categoría: ${evento.categoria}`)
+    })
+    console.log("============================")
+  }
+
   // Verificar si necesita aprobación
   useEffect(() => {
     if (cantidadPosicion && Number.parseFloat(cantidadPosicion) > 0) {
@@ -389,10 +403,10 @@ export default function InicioPage() {
         })
         
         // Cerrar modal inmediatamente y limpiar estados
-        setDialogOpen(false)
-        setEventoSeleccionado(null)
-        setOpcionSeleccionada("")
-        setCantidadPosicion("")
+          setDialogOpen(false)
+          setEventoSeleccionado(null)
+          setOpcionSeleccionada("")
+          setCantidadPosicion("")
         setTxError("")
         
         // Refrescar balance y markets después de un momento
@@ -565,7 +579,7 @@ export default function InicioPage() {
         formData.append('image', imagenFile)
 
         console.log("🌐 Enviando request a /api/upload...")
-        
+
         const uploadResponse = await fetch('/api/upload', {
           method: 'POST',
           body: formData,
@@ -627,6 +641,12 @@ export default function InicioPage() {
       if (nuevoMarket.descripcion && typeof newMarketId === 'number') {
         console.log("📝 Guardando descripción para market ID:", newMarketId)
         MarketDescriptionStorage.saveDescription(newMarketId, nuevoMarket.descripcion, CONTRACTS.PREDICTION_MARKET)
+      }
+
+      // Guardar la categoría asociada al market ID
+      if (nuevoMarket.categoria && typeof newMarketId === 'number') {
+        console.log("🏷️ Guardando categoría para market ID:", newMarketId, "Categoría:", nuevoMarket.categoria)
+        MarketCategoryStorage.saveCategory(newMarketId, nuevoMarket.categoria, CONTRACTS.PREDICTION_MARKET)
       }
 
       setTxError("⏳ Transacción enviada, esperando confirmación...")
@@ -713,44 +733,6 @@ export default function InicioPage() {
                   <div className="flex items-center gap-4 text-sm mt-3">
                     <span>Balance: <strong>{balance} MXNB</strong></span>
                     <span>Markets: <strong>{marketCount}</strong></span>
-                    <Button 
-                      onClick={refrescarTodo} 
-                      size="sm" 
-                      variant="outline"
-                      className="border-primary/20 hover:bg-primary/10"
-                    >
-                      🔄 Refrescar
-                    </Button>
-                    <Button 
-                      onClick={() => {
-                        toast({
-                          title: "🧪 Prueba de Notificación",
-                          description: "¡El sistema de notificaciones funciona correctamente! Esta es una prueba.",
-                          duration: 4000,
-                        })
-                      }} 
-                      size="sm" 
-                      variant="outline"
-                      className="border-blue-200 hover:bg-blue-50 text-blue-600"
-                    >
-                      🔔 Test
-                    </Button>
-                    <Button 
-                      onClick={() => {
-                        const images = MarketImageStorage.getAllImages()
-                        console.log("📸 Imágenes almacenadas:", images)
-                        toast({
-                          title: "📸 Debug de Imágenes",
-                          description: `Imágenes almacenadas: ${images.length}. Ver consola para detalles.`,
-                          duration: 4000,
-                        })
-                      }} 
-                      size="sm" 
-                      variant="outline"
-                      className="border-purple-200 hover:bg-purple-50 text-purple-600"
-                    >
-                      📸 Debug
-                    </Button>
                   </div>
                 </div>
               )}
@@ -810,7 +792,7 @@ export default function InicioPage() {
                                 </p>
                               )}
                             </div>
-
+                            
                             <div className="flex justify-between items-center text-xs">
                               <div className="flex items-center space-x-3">
                                 <span className="text-primary font-medium bg-primary/10 px-2 py-1 rounded">
@@ -901,7 +883,9 @@ export default function InicioPage() {
               </div>
             </div>
           ) : eventosFiltrados.length > 0 ? (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div>
+              
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {eventosFiltrados.map((evento) => (
                 <Card key={evento.id} className="border border-primary/20 bg-white shadow-lg hover:shadow-xl transition-shadow">
                   {evento.imagen ? (
@@ -958,10 +942,10 @@ export default function InicioPage() {
                       ) : (
                         <p className="text-muted-foreground text-sm italic opacity-75">
                           Descripción personalizada no disponible
-                        </p>
-                      )}
+                      </p>
+                    )}
                     </div>
-
+                    
                     <div className="grid grid-cols-2 gap-3 mb-4">
                       {evento.opciones.map((opcion) => (
                         <div
@@ -1015,6 +999,7 @@ export default function InicioPage() {
                 </Card>
               ))}
             </div>
+            </div>
           ) : (
             <div className="text-center py-16">
               <Users className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
@@ -1038,21 +1023,21 @@ export default function InicioPage() {
 
       {/* Dialog para participar en evento */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-lg max-w-[95vw] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Participar en Market</DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="break-words">
               {eventoSeleccionado?.nombre}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="space-y-4 px-1">
             <div>
               <Label className="text-sm font-medium text-foreground">Market</Label>
-              <p className="text-sm text-muted-foreground mt-1">{eventoSeleccionado?.nombre}</p>
+              <p className="text-sm text-muted-foreground mt-1 break-words">{eventoSeleccionado?.nombre}</p>
             </div>
             <div>
               <Label className="text-sm font-medium text-foreground">Selecciona tu predicción</Label>
-              <div className="grid grid-cols-2 gap-3 mt-2">
+              <div className="grid grid-cols-2 gap-2 mt-2">
                 {eventoSeleccionado?.opciones.map((opcion) => (
                   <Button
                     key={opcion.id}
@@ -1060,13 +1045,13 @@ export default function InicioPage() {
                     onClick={() => setOpcionSeleccionada(opcion.id)}
                     className={
                       opcionSeleccionada === opcion.id
-                        ? "bg-primary text-white hover:bg-primary/90"
-                        : "border-primary/20 text-foreground hover:bg-primary/10"
+                        ? "bg-primary text-white hover:bg-primary/90 p-3 h-auto"
+                        : "border-primary/20 text-foreground hover:bg-primary/10 p-3 h-auto"
                     }
                   >
-                    <div className="text-center">
-                      <div className="font-bold">{opcion.nombre}</div>
-                      <div className="text-sm opacity-90">{opcion.cuota.toFixed(2)}x</div>
+                    <div className="text-center w-full">
+                      <div className="font-bold text-sm">{opcion.nombre}</div>
+                      <div className="text-xs opacity-90">{opcion.cuota.toFixed(2)}x</div>
                     </div>
                   </Button>
                 ))}
@@ -1084,7 +1069,7 @@ export default function InicioPage() {
                 step="0.01"
                 value={cantidadPosicion}
                 onChange={(e) => setCantidadPosicion(e.target.value)}
-                className="mt-1"
+                className="mt-1 w-full"
               />
               {cantidadPosicion && (
                 <p className="text-sm text-muted-foreground mt-1">
@@ -1096,20 +1081,20 @@ export default function InicioPage() {
               </p>
             </div>
             {txError && (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{txError}</AlertDescription>
+              <Alert variant="destructive" className="w-full">
+                <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                <AlertDescription className="break-words">{txError}</AlertDescription>
               </Alert>
             )}
             
           </div>
-          <DialogFooter className="flex flex-col gap-3">
+          <DialogFooter className="flex flex-col gap-3 pt-4 border-t px-1">
             {/* Botón de aprobar si no tiene allowance infinito - En su propia fila */}
             {!hasInfiniteAllowance && (
-              <div className="w-full">
-                <Alert className="mb-3">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>
+              <div className="w-full space-y-3">
+                <Alert className="border-amber-200 bg-amber-50 w-full">
+                  <AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0" />
+                  <AlertDescription className="text-amber-800 break-words">
                     Necesitas aprobar tokens MXNB antes de participar.
                   </AlertDescription>
                 </Alert>
@@ -1126,31 +1111,33 @@ export default function InicioPage() {
                     }
                   }}
                   disabled={isWritePending || isConfirming}
-                  className="w-full bg-blue-600 hover:bg-blue-700"
+                  className="w-full bg-primary hover:bg-primary/90 text-white min-h-[44px]"
                 >
-                  {(isWritePending || isConfirming) && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                  Aprobar MXNB (Solo una vez)
+                  {(isWritePending || isConfirming) && <Loader2 className="w-4 h-4 mr-2 animate-spin flex-shrink-0" />}
+                  <span className="text-sm">Aprobar MXNB (Solo una vez)</span>
                 </Button>
               </div>
             )}
             
             {/* Botones principales - En una fila separada */}
-            <div className="flex gap-3 w-full">
+            <div className="flex gap-2 w-full">
               <Button 
                 variant="outline" 
                 onClick={() => setDialogOpen(false)}
-                className="flex-1"
+                className="flex-1 border-primary/20 hover:bg-primary/10 min-h-[44px] text-sm"
               >
                 Cancelar
               </Button>
-              
+            
               <Button
                 onClick={manejarPosicion}
                 disabled={!opcionSeleccionada || !cantidadPosicion || isWritePending || isConfirming || !hasInfiniteAllowance}
-                className="flex-1 bg-primary hover:bg-primary/90"
+                className="flex-1 bg-primary hover:bg-primary/90 min-h-[44px] text-sm"
               >
-                {(isWritePending || isConfirming) && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                {isWritePending ? "Confirmando..." : isConfirming ? "Procesando..." : "Participar"}
+                {(isWritePending || isConfirming) && <Loader2 className="w-4 h-4 mr-2 animate-spin flex-shrink-0" />}
+                <span className="truncate">
+                  {isWritePending ? "Confirmando..." : isConfirming ? "Procesando..." : "Participar"}
+                </span>
               </Button>
             </div>
           </DialogFooter>

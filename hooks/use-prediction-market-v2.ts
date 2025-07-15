@@ -22,6 +22,7 @@ import { arbitrumSepolia } from "viem/chains"
 import type { OpcionApuesta } from "@/lib/types"
 import { MarketImageStorage } from "@/lib/market-images"
 import { MarketDescriptionStorage } from "@/lib/market-descriptions"
+import { MarketCategoryStorage } from "@/lib/market-categories"
 
 // Cliente público con múltiples RPCs para mayor confiabilidad
 const publicClient = createPublicClient({
@@ -1126,12 +1127,15 @@ export function usePredictionMarketV2() {
       // Obtener la descripción del almacenamiento local
       const marketDescription = MarketDescriptionStorage.getDescription(market.id, CONTRACTS.PREDICTION_MARKET)
 
+      // Obtener la categoría del almacenamiento local
+      const marketCategory = MarketCategoryStorage.getCategory(market.id, CONTRACTS.PREDICTION_MARKET) || "general"
+
       return {
         id: market.id.toString(),
         nombre: market.question,
         descripcion: marketDescription || market.question, // Usar descripción real o fallback a la pregunta
         pregunta: market.question,
-        categoria: "general",
+        categoria: marketCategory,
         fechaFin: new Date(Number(market.endTime) * 1000).toISOString(),
         estado,
         imagen: marketImage || undefined, // Convertir null a undefined
