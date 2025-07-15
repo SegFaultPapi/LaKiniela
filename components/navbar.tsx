@@ -188,7 +188,7 @@ export function Navbar() {
           <div className="flex items-center min-w-0 flex-shrink-0">
             <Link href="/" className="flex items-center space-x-4">
               <div className="relative w-12 h-12">
-                <Image src="/la-kiniela-logo-new.png" alt="La Kiniela" fill className="object-contain" />
+                <Image src="/la-kiniela-logo.png" alt="La Kiniela" fill className="object-contain" />
               </div>
               <span className="text-3xl font-bold text-foreground whitespace-nowrap">
                 La <span className="text-primary">Kiniela</span>
