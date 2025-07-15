@@ -84,8 +84,13 @@ export default function PerfilPage() {
         const userShares = await getUserShares(market.id, address)
         
         if (userShares && (userShares.optionAShares > 0 || userShares.optionBShares > 0)) {
-          // Obtener imagen del market
-          const marketImage = MarketImageStorage.getImage(market.id, "0xB00614e08530E092121EF0633f9226B2466FFb02")
+          // Obtener imagen del market (síncronamente para compatibilidad)
+          let marketImage: string | undefined
+          if (typeof window !== 'undefined') {
+            marketImage = MarketImageStorage.getImages().find(
+              img => img.marketId === market.id && img.contractAddress.toLowerCase() === "0xB00614e08530E092121EF0633f9226B2466FFb02".toLowerCase()
+            )?.imageUrl
+          }
           
           // Determinar estado del market
           let estado: "activo" | "finalizado" | "cancelado";

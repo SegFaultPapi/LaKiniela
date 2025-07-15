@@ -64,6 +64,7 @@ import { ConnectButton } from "@rainbow-me/rainbowkit"
 import { useToast } from "@/hooks/use-toast"
 import { MarketImageStorage } from "@/lib/market-images"
 import { MarketDescriptionStorage } from "@/lib/market-descriptions"
+import { ImageSyncManager } from "@/components/image-sync-manager"
 import { CONTRACTS, MIN_MARKET_DURATION, MAX_MARKET_DURATION, CURRENT_CONTRACT_ADDRESS } from "@/lib/contracts-config"
 
 export default function InicioPage() {
@@ -619,7 +620,7 @@ export default function InicioPage() {
       // Guardar la imagen asociada al market ID si existe
       if (imageUrl && typeof newMarketId === 'number') {
         console.log("💾 Guardando imagen para market ID:", newMarketId, "URL tipo:", typeof imageUrl)
-        MarketImageStorage.saveImage(newMarketId, imageUrl, CONTRACTS.PREDICTION_MARKET)
+        await MarketImageStorage.saveImage(newMarketId, imageUrl, CONTRACTS.PREDICTION_MARKET)
       }
 
       // Guardar la descripción asociada al market ID si existe
@@ -1523,6 +1524,9 @@ export default function InicioPage() {
         onClose={closeUsernameDialog}
         onUsernameSet={setUsername}
       />
+      
+      {/* Sincronización automática de imágenes */}
+      <ImageSyncManager />
     </div>
   )
 }

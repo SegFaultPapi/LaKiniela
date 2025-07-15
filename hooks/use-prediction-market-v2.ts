@@ -1118,8 +1118,10 @@ export function usePredictionMarketV2() {
         estado = "finalizado";
       }
 
-      // Obtener la imagen del almacenamiento local
-      const marketImage = MarketImageStorage.getImage(market.id, CONTRACTS.PREDICTION_MARKET)
+      // Obtener la imagen del almacenamiento local (síncronamente para compatibilidad)
+      const marketImage = MarketImageStorage.getImages().find(
+        img => img.marketId === market.id && img.contractAddress.toLowerCase() === CONTRACTS.PREDICTION_MARKET.toLowerCase()
+      )?.imageUrl
 
       // Obtener la descripción del almacenamiento local
       const marketDescription = MarketDescriptionStorage.getDescription(market.id, CONTRACTS.PREDICTION_MARKET)

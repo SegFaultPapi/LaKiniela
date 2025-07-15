@@ -8,6 +8,9 @@
     },
     "app/api/test-simple/route.ts": {
       "maxDuration": 30
+    },
+    "app/api/images/store/route.ts": {
+      "maxDuration": 30
     }
   }
 } 
